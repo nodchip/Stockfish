@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量HalfRelativeKPの定義
+// NNUE評価関数の入力特徴量HalfRelativeKPの定義
 
 #ifndef _NNUE_FEATURES_HALF_RELATIVE_KP_H_
 #define _NNUE_FEATURES_HALF_RELATIVE_KP_H_

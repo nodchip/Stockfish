@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の学習用クラステンプレートの共通ヘッダ
+// NNUE評価関数の学習用クラステンプレートの共通ヘッダ
 
 #ifndef _NNUE_TRAINER_H_
 #define _NNUE_TRAINER_H_

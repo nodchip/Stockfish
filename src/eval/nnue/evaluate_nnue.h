@@ -1,4 +1,4 @@
-﻿// NNUE評価関数で用いるheader
+// NNUE評価関数で用いるheader
 
 #ifndef _EVALUATE_NNUE_H_
 #define _EVALUATE_NNUE_H_

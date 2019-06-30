@@ -1,4 +1,4 @@
-﻿// NNUE評価関数で用いる入力特徴量とネットワーク構造の定義
+// NNUE評価関数で用いる入力特徴量とネットワーク構造の定義
 
 #include "../features/feature_set.h"
 #include "../features/half_kp.h"

@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量セットを表すクラステンプレート
+// NNUE評価関数の入力特徴量セットを表すクラステンプレート
 
 #ifndef _NNUE_FEATURE_SET_H_
 #define _NNUE_FEATURE_SET_H_

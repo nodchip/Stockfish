@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の層ClippedReLUの定義
+// NNUE評価関数の層ClippedReLUの定義
 
 #ifndef _NNUE_LAYERS_CLIPPED_RELU_H_
 #define _NNUE_LAYERS_CLIPPED_RELU_H_

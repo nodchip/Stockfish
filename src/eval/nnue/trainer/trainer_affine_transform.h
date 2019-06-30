@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の学習クラステンプレートのAffineTransform用特殊化
+// NNUE評価関数の学習クラステンプレートのAffineTransform用特殊化
 
 #ifndef _NNUE_TRAINER_AFFINE_TRANSFORM_H_
 #define _NNUE_TRAINER_AFFINE_TRANSFORM_H_

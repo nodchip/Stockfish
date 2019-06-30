@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の特徴量変換クラステンプレートのFeatureSet用特殊化
+// NNUE評価関数の特徴量変換クラステンプレートのFeatureSet用特殊化
 
 #ifndef _NNUE_TRAINER_FEATURES_FACTORIZER_FEATURE_SET_H_
 #define _NNUE_TRAINER_FEATURES_FACTORIZER_FEATURE_SET_H_

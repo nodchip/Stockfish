@@ -1,4 +1,4 @@
-﻿#ifndef _EVALUATE_MIR_INV_TOOLS_
+#ifndef _EVALUATE_MIR_INV_TOOLS_
 #define _EVALUATE_MIR_INV_TOOLS_
 
 #if defined(EVAL_NNUE) || defined(EVAL_LEARN)

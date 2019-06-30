@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の学習で用いるインターフェイス
+// NNUE評価関数の学習で用いるインターフェイス
 
 #ifndef _EVALUATE_NNUE_LEARNER_H_
 #define _EVALUATE_NNUE_LEARNER_H_

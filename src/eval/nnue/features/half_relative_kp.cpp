@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量HalfRelativeKPの定義
+// NNUE評価関数の入力特徴量HalfRelativeKPの定義
 
 #if defined(EVAL_NNUE)
 

@@ -40,22 +40,22 @@ extern vector<string> setup_bench(const Position&, istream&);
 // FEN string of the initial position, normal chess
 const char* StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-// Šû•ˆ‚ğ©“®¶¬‚·‚éƒRƒ}ƒ“ƒh
+// æ£‹è­œã‚’è‡ªå‹•ç”Ÿæˆã™ã‚‹ã‚³ãƒãƒ³ãƒ‰
 #if defined (EVAL_LEARN)
 namespace Learner
 {
-  // ‹³t‹Ç–Ê‚Ì©“®¶¬
+  // æ•™å¸«å±€é¢ã®è‡ªå‹•ç”Ÿæˆ
   void gen_sfen(Position& pos, istringstream& is);
 
-  // ¶¬‚µ‚½Šû•ˆ‚©‚ç‚ÌŠwK
+  // ç”Ÿæˆã—ãŸæ£‹è­œã‹ã‚‰ã®å­¦ç¿’
   void learn(Position& pos, istringstream& is);
 
 #if defined(GENSFEN2019)
-  // ŠJ”­’†‚Ì‹³t‹Ç–Ê‚Ì©“®¶¬ƒRƒ}ƒ“ƒh
+  // é–‹ç™ºä¸­ã®æ•™å¸«å±€é¢ã®è‡ªå‹•ç”Ÿæˆã‚³ãƒãƒ³ãƒ‰
   void gen_sfen2019(Position& pos, istringstream& is);
 #endif
 
-  // “Ç‚İ‹Ø‚Æ•]‰¿’l‚ÌƒyƒABLearner::search(),Learner::qsearch()‚ª•Ô‚·B
+  // èª­ã¿ç­‹ã¨è©•ä¾¡å€¤ã®ãƒšã‚¢ã€‚Learner::search(),Learner::qsearch()ãŒè¿”ã™ã€‚
   typedef std::pair<Value, std::vector<Move> > ValueAndPV;
 
   ValueAndPV qsearch(Position& pos);
@@ -199,21 +199,21 @@ namespace {
          << "\nNodes/second    : " << 1000 * nodes / elapsed << endl;
   }
 
-  // check sum‚ğŒvZ‚µ‚½‚Æ‚«A‚»‚ê‚ğ•Û‘¶‚µ‚Ä‚¨‚¢‚Ä‚ ‚Æ‚ÅŸ‰ñˆÈ~A®‡«‚Ìƒ`ƒFƒbƒN‚ğs‚È‚¤B
+  // check sumã‚’è¨ˆç®—ã—ãŸã¨ãã€ãã‚Œã‚’ä¿å­˜ã—ã¦ãŠã„ã¦ã‚ã¨ã§æ¬¡å›ä»¥é™ã€æ•´åˆæ€§ã®ãƒã‚§ãƒƒã‚¯ã‚’è¡Œãªã†ã€‚
   uint64_t eval_sum;
 } // namespace
 
-// is_ready_cmd()‚ğŠO•”‚©‚çŒÄ‚Ño‚¹‚é‚æ‚¤‚É‚µ‚Ä‚¨‚­B(benchƒRƒ}ƒ“ƒh‚È‚Ç‚©‚çŒÄ‚Ño‚µ‚½‚¢‚½‚ß)
-// ‹Ç–Ê‚Í‰Šú‰»‚³‚ê‚È‚¢‚Ì‚Å’ˆÓB
+// is_ready_cmd()ã‚’å¤–éƒ¨ã‹ã‚‰å‘¼ã³å‡ºã›ã‚‹ã‚ˆã†ã«ã—ã¦ãŠãã€‚(benchã‚³ãƒãƒ³ãƒ‰ãªã©ã‹ã‚‰å‘¼ã³å‡ºã—ãŸã„ãŸã‚)
+// å±€é¢ã¯åˆæœŸåŒ–ã•ã‚Œãªã„ã®ã§æ³¨æ„ã€‚
 void is_ready(bool skipCorruptCheck)
 {
 #if defined(EVAL_NNUE)
-  // "isready"‚ğó‚¯æ‚Á‚½‚ ‚ÆA"readyok"‚ğ•Ô‚·‚Ü‚Å5•b‚²‚Æ‚É‰üs‚ğ‘—‚é‚æ‚¤‚ÉC³‚·‚éB(keep alive“I‚Èˆ—)
-  //	USI2.0‚Ìd—l‚æ‚èB
-  //  -"isready"‚Ì‚ ‚Æ‚Ìtime outŠÔ‚ÍA30•b’ö“x‚Æ‚·‚éB‚±‚ê‚ğ’´‚¦‚ÄA•]‰¿ŠÖ”‚Ì‰Šú‰»Ahashƒe[ƒuƒ‹‚ÌŠm•Û‚ğ‚µ‚½‚¢ê‡A
-  //  vlƒGƒ“ƒWƒ“‘¤‚©‚ç’èŠú“I‚É‰½‚ç‚©‚ÌƒƒbƒZ[ƒW(‰üs‰Â)‚ğ‘—‚é‚×‚«‚Å‚ ‚éB
-  //  -ShogiGUI‚Å‚Í‚·‚Å‚É‚»‚¤‚È‚Á‚Ä‚¢‚é‚Ì‚ÅAMyShogi‚à‚»‚ê‚É’Ç‚·‚éB
-  //  -‚Ü‚½A‚â‚Ë‚¤‚ç‰¤‚ÌƒGƒ“ƒWƒ“‘¤‚ÍA"isready"‚ğó‚¯æ‚Á‚½‚ ‚ÆA"readyok"‚ğ•Ô‚·‚Ü‚Å5•b‚²‚Æ‚É‰üs‚ğ‘—‚é‚æ‚¤‚ÉC³‚·‚éB
+  // "isready"ã‚’å—ã‘å–ã£ãŸã‚ã¨ã€"readyok"ã‚’è¿”ã™ã¾ã§5ç§’ã”ã¨ã«æ”¹è¡Œã‚’é€ã‚‹ã‚ˆã†ã«ä¿®æ­£ã™ã‚‹ã€‚(keep aliveçš„ãªå‡¦ç†)
+  //	USI2.0ã®ä»•æ§˜ã‚ˆã‚Šã€‚
+  //  -"isready"ã®ã‚ã¨ã®time outæ™‚é–“ã¯ã€30ç§’ç¨‹åº¦ã¨ã™ã‚‹ã€‚ã“ã‚Œã‚’è¶…ãˆã¦ã€è©•ä¾¡é–¢æ•°ã®åˆæœŸåŒ–ã€hashãƒ†ãƒ¼ãƒ–ãƒ«ã®ç¢ºä¿ã‚’ã—ãŸã„å ´åˆã€
+  //  æ€è€ƒã‚¨ãƒ³ã‚¸ãƒ³å´ã‹ã‚‰å®šæœŸçš„ã«ä½•ã‚‰ã‹ã®ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸(æ”¹è¡Œå¯)ã‚’é€ã‚‹ã¹ãã§ã‚ã‚‹ã€‚
+  //  -ShogiGUIã§ã¯ã™ã§ã«ãã†ãªã£ã¦ã„ã‚‹ã®ã§ã€MyShogiã‚‚ãã‚Œã«è¿½éšã™ã‚‹ã€‚
+  //  -ã¾ãŸã€ã‚„ã­ã†ã‚‰ç‹ã®ã‚¨ãƒ³ã‚¸ãƒ³å´ã¯ã€"isready"ã‚’å—ã‘å–ã£ãŸã‚ã¨ã€"readyok"ã‚’è¿”ã™ã¾ã§5ç§’ã”ã¨ã«æ”¹è¡Œã‚’é€ã‚‹ã‚ˆã†ã«ä¿®æ­£ã™ã‚‹ã€‚
 
   auto ended = false;
   auto th = std::thread([&ended] {
@@ -221,25 +221,25 @@ void is_ready(bool skipCorruptCheck)
     while (!ended)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      if (++count >= 50 /* 5•b */)
+      if (++count >= 50 /* 5ç§’ */)
       {
         count = 0;
-        sync_cout << sync_endl; // ‰üs‚ğ‘—M‚·‚éB
+        sync_cout << sync_endl; // æ”¹è¡Œã‚’é€ä¿¡ã™ã‚‹ã€‚
       }
     }
     });
 
-  // •]‰¿ŠÖ”‚Ì“Ç‚İ‚İ‚È‚ÇŠÔ‚Ì‚©‚©‚é‚Å‚ ‚ë‚¤ˆ—‚Í‚±‚Ìƒ^ƒCƒ~ƒ“ƒO‚Ås‚È‚¤B
-  // ‹N“®‚ÉŠÔ‚Ì‚©‚©‚éˆ—‚ğ‚µ‚Ä‚µ‚Ü‚¤‚Æ«ŠûŠ‚ªƒ^ƒCƒ€ƒAƒEƒg”»’è‚ğ‚µ‚ÄAvlƒGƒ“ƒWƒ“‚Æ‚µ‚Ä‚Ì”F¯‚ğƒŠƒ^ƒCƒA‚µ‚Ä‚µ‚Ü‚¤B
+  // è©•ä¾¡é–¢æ•°ã®èª­ã¿è¾¼ã¿ãªã©æ™‚é–“ã®ã‹ã‹ã‚‹ã§ã‚ã‚ã†å‡¦ç†ã¯ã“ã®ã‚¿ã‚¤ãƒŸãƒ³ã‚°ã§è¡Œãªã†ã€‚
+  // èµ·å‹•æ™‚ã«æ™‚é–“ã®ã‹ã‹ã‚‹å‡¦ç†ã‚’ã—ã¦ã—ã¾ã†ã¨å°†æ£‹æ‰€ãŒã‚¿ã‚¤ãƒ ã‚¢ã‚¦ãƒˆåˆ¤å®šã‚’ã—ã¦ã€æ€è€ƒã‚¨ãƒ³ã‚¸ãƒ³ã¨ã—ã¦ã®èªè­˜ã‚’ãƒªã‚¿ã‚¤ã‚¢ã—ã¦ã—ã¾ã†ã€‚
   if (!UCI::load_eval_finished)
   {
-    // •]‰¿ŠÖ”‚Ì“Ç‚İ‚İ
+    // è©•ä¾¡é–¢æ•°ã®èª­ã¿è¾¼ã¿
     Eval::load_eval();
 
-    // ƒ`ƒFƒbƒNƒTƒ€‚ÌŒvZ‚Æ•Û‘¶(‚»‚ÌŒã‚Ìƒƒ‚ƒŠ”j‘¹‚Ìƒ`ƒFƒbƒN‚Ì‚½‚ß)
+    // ãƒã‚§ãƒƒã‚¯ã‚µãƒ ã®è¨ˆç®—ã¨ä¿å­˜(ãã®å¾Œã®ãƒ¡ãƒ¢ãƒªç ´æã®ãƒã‚§ãƒƒã‚¯ã®ãŸã‚)
     eval_sum = Eval::calc_check_sum();
 
-    // ƒ\ƒtƒg–¼‚Ì•\¦
+    // ã‚½ãƒ•ãƒˆåã®è¡¨ç¤º
     Eval::print_softname(eval_sum);
 
     UCI::load_eval_finished = true;
@@ -247,14 +247,14 @@ void is_ready(bool skipCorruptCheck)
   }
   else
   {
-    // ƒƒ‚ƒŠ‚ª”j‰ó‚³‚ê‚Ä‚¢‚È‚¢‚©‚ğ’²‚×‚é‚½‚ß‚Éƒ`ƒFƒbƒNƒTƒ€‚ğ–ˆ‰ñ’²‚×‚éB
-    // ŠÔ‚ª­‚µ‚à‚Á‚½‚¢‚È‚¢‹C‚à‚·‚é‚ª.. 0.1•b‚®‚ç‚¢‚Ì‚±‚Æ‚È‚Ì‚Å—Ç‚µ‚Æ‚·‚éB
+    // ãƒ¡ãƒ¢ãƒªãŒç ´å£Šã•ã‚Œã¦ã„ãªã„ã‹ã‚’èª¿ã¹ã‚‹ãŸã‚ã«ãƒã‚§ãƒƒã‚¯ã‚µãƒ ã‚’æ¯å›èª¿ã¹ã‚‹ã€‚
+    // æ™‚é–“ãŒå°‘ã—ã‚‚ã£ãŸã„ãªã„æ°—ã‚‚ã™ã‚‹ãŒ.. 0.1ç§’ãã‚‰ã„ã®ã“ã¨ãªã®ã§è‰¯ã—ã¨ã™ã‚‹ã€‚
     if (!skipCorruptCheck && eval_sum != Eval::calc_check_sum())
       sync_cout << "Error! : EVAL memory is corrupted" << sync_endl;
   }
 
-  // isready‚É‘Î‚µ‚Ä‚Íreadyok‚ğ•Ô‚·‚Ü‚ÅŸ‚ÌƒRƒ}ƒ“ƒh‚ª—ˆ‚È‚¢‚±‚Æ‚Í–ñ‘©‚³‚ê‚Ä‚¢‚é‚Ì‚Å
-  // ‚±‚Ìƒ^ƒCƒ~ƒ“ƒO‚ÅŠeí•Ï”‚Ì‰Šú‰»‚à‚µ‚Ä‚¨‚­B
+  // isreadyã«å¯¾ã—ã¦ã¯readyokã‚’è¿”ã™ã¾ã§æ¬¡ã®ã‚³ãƒãƒ³ãƒ‰ãŒæ¥ãªã„ã“ã¨ã¯ç´„æŸã•ã‚Œã¦ã„ã‚‹ã®ã§
+  // ã“ã®ã‚¿ã‚¤ãƒŸãƒ³ã‚°ã§å„ç¨®å¤‰æ•°ã®åˆæœŸåŒ–ã‚‚ã—ã¦ãŠãã€‚
 
   TT.resize(Options["Hash"]);
   Search::clear();
@@ -262,7 +262,7 @@ void is_ready(bool skipCorruptCheck)
 
   Threads.stop = false;
 
-  // keep alive‚ğ‘—M‚·‚é‚½‚ß‚É¶¬‚µ‚½ƒXƒŒƒbƒh‚ğI—¹‚³‚¹A‘Ò‹@‚·‚éB
+  // keep aliveã‚’é€ä¿¡ã™ã‚‹ãŸã‚ã«ç”Ÿæˆã—ãŸã‚¹ãƒ¬ãƒƒãƒ‰ã‚’çµ‚äº†ã•ã›ã€å¾…æ©Ÿã™ã‚‹ã€‚
   ended = true;
   th.join();
 #endif  // defined(EVAL_NNUE)
@@ -272,7 +272,7 @@ void is_ready(bool skipCorruptCheck)
 
 
 // --------------------
-// ƒeƒXƒg—p‚Éqsearch(),search()‚ğ’¼ÚŒÄ‚Ô
+// ãƒ†ã‚¹ãƒˆç”¨ã«qsearch(),search()ã‚’ç›´æ¥å‘¼ã¶
 // --------------------
 
 #if defined(EVAL_LEARN)
@@ -368,10 +368,10 @@ void UCI::loop(int argc, char* argv[]) {
       else if (token == "learn") Learner::learn(pos, is);
 
 #if defined (GENSFEN2019)
-      // ŠJ”­’†‚Ì‹³t‹Ç–Ê¶¬ƒRƒ}ƒ“ƒh
+      // é–‹ç™ºä¸­ã®æ•™å¸«å±€é¢ç”Ÿæˆã‚³ãƒãƒ³ãƒ‰
       else if (token == "gensfen2019") Learner::gen_sfen2019(pos, is);
 #endif
-      // ƒeƒXƒg—p‚Éqsearch(),search()‚ğ’¼ÚŒÄ‚ÔƒRƒ}ƒ“ƒh
+      // ãƒ†ã‚¹ãƒˆç”¨ã«qsearch(),search()ã‚’ç›´æ¥å‘¼ã¶ã‚³ãƒãƒ³ãƒ‰
       else if (token == "qsearch") qsearch_cmd(pos);
       else if (token == "search") search_cmd(pos, is);
 

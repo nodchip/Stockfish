@@ -1,4 +1,4 @@
-﻿// 入力特徴量のインデックスリストの定義
+// 入力特徴量のインデックスリストの定義
 
 #ifndef _NNUE_FEATURES_INDEX_LIST_H_
 #define _NNUE_FEATURES_INDEX_LIST_H_

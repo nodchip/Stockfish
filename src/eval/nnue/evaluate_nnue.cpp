@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の計算に関するコード
+// NNUE評価関数の計算に関するコード
 
 #if defined(EVAL_NNUE)
 

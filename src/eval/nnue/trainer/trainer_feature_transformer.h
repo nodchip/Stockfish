@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の学習クラステンプレートのFeatureTransformer用特殊化
+// NNUE評価関数の学習クラステンプレートのFeatureTransformer用特殊化
 
 #ifndef _NNUE_TRAINER_FEATURE_TRANSFORMER_H_
 #define _NNUE_TRAINER_FEATURE_TRANSFORMER_H_

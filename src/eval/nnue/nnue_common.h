@@ -1,4 +1,4 @@
-﻿// NNUE評価関数で用いる定数など
+// NNUE評価関数で用いる定数など
 
 #ifndef _NNUE_COMMON_H_
 #define _NNUE_COMMON_H_

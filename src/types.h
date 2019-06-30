@@ -190,7 +190,7 @@ enum Value : int {
 
   MidgameLimit  = 15258, EndgameLimit  = 3915,
 
-  // •]‰¿ŠÖ”‚Ì•Ô‚·’l‚ÌÅ‘å’l(2**14‚®‚ç‚¢‚Éû‚Ü‚Á‚Ä‚¢‚Ä—~‚µ‚¢‚Æ‚±‚ë‚¾‚ª..)
+  // è©•ä¾¡é–¢æ•°ã®è¿”ã™å€¤ã®æœ€å¤§å€¤(2**14ãã‚‰ã„ã«åã¾ã£ã¦ã„ã¦æ¬²ã—ã„ã¨ã“ã‚ã ãŒ..)
   VALUE_MAX_EVAL = 27000,
 };
 
@@ -236,7 +236,7 @@ enum Square : int {
   SQ_NONE,
 
   SQUARE_ZERO = 0, SQUARE_NB = 64,
-  SQUARE_NB_PLUS1 = SQUARE_NB + 1, // ‹Ê‚ª‚¢‚È‚¢ê‡ASQUARE_NB‚ÉˆÚ“®‚µ‚½‚à‚Ì‚Æ‚µ‚Äˆµ‚¤‚½‚ßA”z—ñ‚ğSQUARE_NB+1‚ÅŠm•Û‚µ‚È‚¢‚Æ‚¢‚¯‚È‚¢‚Æ‚«‚ª‚ ‚é‚Ì‚Å‚±‚Ì’è”‚ğ—p‚¢‚éB
+  SQUARE_NB_PLUS1 = SQUARE_NB + 1, // ç‰ãŒã„ãªã„å ´åˆã€SQUARE_NBã«ç§»å‹•ã—ãŸã‚‚ã®ã¨ã—ã¦æ‰±ã†ãŸã‚ã€é…åˆ—ã‚’SQUARE_NB+1ã§ç¢ºä¿ã—ãªã„ã¨ã„ã‘ãªã„ã¨ããŒã‚ã‚‹ã®ã§ã“ã®å®šæ•°ã‚’ç”¨ã„ã‚‹ã€‚
 };
 
 enum Direction : int {
@@ -460,18 +460,18 @@ constexpr bool is_ok(Move m) {
   return from_sq(m) != to_sq(m); // Catch MOVE_NULL and MOVE_NONE
 }
 
-// ”Õ–Ê‚ğ180‹‰ñ‚µ‚½‚Æ‚«‚Ì¡–Ú‚ğ•Ô‚·
+// ç›¤é¢ã‚’180Â°å›ã—ãŸã¨ãã®å‡ç›®ã‚’è¿”ã™
 constexpr Square Inv(Square sq) { return (Square)((SQUARE_NB - 1) - sq); }
 
-// ”Õ–Ê‚ğƒ~ƒ‰[‚µ‚½‚Æ‚«‚Ì¡–Ú‚ğ•Ô‚·
+// ç›¤é¢ã‚’ãƒŸãƒ©ãƒ¼ã—ãŸã¨ãã®å‡ç›®ã‚’è¿”ã™
 constexpr Square Mir(Square sq) { return make_square(File(7 - (int)file_of(sq)), rank_of(sq)); }
 
 #if defined(EVAL_NNUE) || defined(EVAL_LEARN)
 // --------------------
-//        ‹î” 
+//        é§’ç®±
 // --------------------
 
-// PositionƒNƒ‰ƒX‚Å—p‚¢‚éA‹îƒŠƒXƒg(‚Ç‚Ì‹î‚ª‚Ç‚±‚É‚ ‚é‚Ì‚©)‚ğŠÇ—‚·‚é‚Æ‚«‚Ì”Ô†B
+// Positionã‚¯ãƒ©ã‚¹ã§ç”¨ã„ã‚‹ã€é§’ãƒªã‚¹ãƒˆ(ã©ã®é§’ãŒã©ã“ã«ã‚ã‚‹ã®ã‹)ã‚’ç®¡ç†ã™ã‚‹ã¨ãã®ç•ªå·ã€‚
 enum PieceNumber : uint8_t
 {
 	PIECE_NUMBER_PAWN = 0,
@@ -481,7 +481,7 @@ enum PieceNumber : uint8_t
 	PIECE_NUMBER_QUEEN = 28,
 	PIECE_NUMBER_KING = 30,
 	PIECE_NUMBER_WKING = 30,
-	PIECE_NUMBER_BKING = 31, // æèAŒãè‚Ì‹Ê‚Ì”Ô†‚ª•K—v‚Èê‡‚Í‚±‚Á‚¿‚ğ—p‚¢‚é
+	PIECE_NUMBER_BKING = 31, // å…ˆæ‰‹ã€å¾Œæ‰‹ã®ç‰ã®ç•ªå·ãŒå¿…è¦ãªå ´åˆã¯ã“ã£ã¡ã‚’ç”¨ã„ã‚‹
 	PIECE_NUMBER_ZERO = 0,
 	PIECE_NUMBER_NB = 32,
 };
@@ -494,7 +494,7 @@ inline PieceNumber operator++(PieceNumber& d, int) {
 }
 inline PieceNumber& operator--(PieceNumber& d) { return d = PieceNumber(int8_t(d) - 1); }
 
-// PieceNumber‚Ì®‡«‚ÌŒŸ¸Bassert—pB
+// PieceNumberã®æ•´åˆæ€§ã®æ¤œæŸ»ã€‚assertç”¨ã€‚
 constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 #endif  // defined(EVAL_NNUE) || defined(EVAL_LEARN)
 

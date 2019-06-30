@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量Kの定義
+// NNUE評価関数の入力特徴量Kの定義
 
 #if defined(EVAL_NNUE)
 

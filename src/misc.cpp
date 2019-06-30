@@ -221,7 +221,7 @@ void bindThisThread(size_t) {}
 
 /// best_group() retrieves logical processor information using Windows specific
 /// API and returns the best group id for the thread with index idx. Original
-/// code from Texel by Peter Österlund.
+/// code from Texel by Peter テ穆terlund.
 
 int best_group(size_t idx) {
 
@@ -317,7 +317,7 @@ void bindThisThread(size_t idx) {
 
 } // namespace WinProcGroup
 
-// 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
+// 迴セ蝨ィ譎ょ綾繧呈枚蟄怜蛹悶＠縺溘ｂ繧定ソ斐☆縲評価関数の学習時などに用いる)
 std::string now_string()
 {
   // std::ctime(), localtime()を使うと、MSVCでセキュアでないという警告が出る。

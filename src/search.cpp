@@ -1728,60 +1728,60 @@ void Tablebases::rank_root_moves(Position& pos, Search::RootMoves& rootMoves) {
     }
 }
 
-// --- �w�K���ɗp����Adepth�Œ�T���Ȃǂ̊֐����O���ɑ΂��Č��J
+// --- 学習時に用いる、depth固定探索などの関数を外部に対して公開
 
 #if defined (EVAL_LEARN)
 
 namespace Learner
 {
-  // �w�K�p�ɁA1�̃X���b�h����search,qsearch()���Ăяo����悤�ȃX�^�u��p�ӂ���B
-  // ���܂ɂ��Ďv���΁AApery�̂悤��Searcher�������ăX���b�h���Ƃɒu���\�Ȃǂ�p�ӂ���ق���
-  // �ǂ����������m��Ȃ��B
+  // 学習用に、1つのスレッドからsearch,qsearch()を呼び出せるようなスタブを用意する。
+  // いまにして思えば、AperyのようにSearcherを持ってスレッドごとに置換表などを用意するほうが
+  // 良かったかも知れない。
 
-  // �w�K�̂��߂̏������B
-  // Learner::search(),Learner::qsearch()����Ăяo�����B
+  // 学習のための初期化。
+  // Learner::search(),Learner::qsearch()から呼び出される。
   void init_for_search(Position& pos, Stack* ss)
   {
 
-    // RootNode��ss->ply == 0�����̏����B
-    // �[���N���A����̂ŁAss->ply == 0�ƂȂ�̂ő��v�c�B
+    // RootNodeはss->ply == 0がその条件。
+    // ゼロクリアするので、ss->ply == 0となるので大丈夫…。
 
     std::memset(ss - 7, 0, 10 * sizeof(Stack));
 
-    // Search::Limits�Ɋւ���
-    // ���̃����o�[�ϐ���global�Ȃ̂ő��̃X���b�h�ɉe�����y�ڂ��̂ŋC�����邱�ƁB
+    // Search::Limitsに関して
+    // このメンバー変数はglobalなので他のスレッドに影響を及ぼすので気をつけること。
     {
       auto& limits = Search::Limits;
 
-      // �T����"go infinite"�R�}���h�����ɂ���B(time management�����ƍ��邽��)
+      // 探索を"go infinite"コマンド相当にする。(time managementされると困るため)
       limits.infinite = true;
 
-      // PV��\�������Ǝז��Ȃ̂ŏ����Ă����B
+      // PVを表示されると邪魔なので消しておく。
       limits.silent = true;
 
-      // �����p����Ɗe�X���b�h��nodes��ώZ�������̂Ɣ�r����Ă��܂��B�䂦�Ɏg�p���Ȃ��B
+      // これを用いると各スレッドのnodesを積算したものと比較されてしまう。ゆえに使用しない。
       limits.nodes = 0;
 
-      // depth���ALearner::search()�̈����Ƃ��ēn���ꂽ���̂ŏ�������B
+      // depthも、Learner::search()の引数として渡されたもので処理する。
       limits.depth = 0;
 
-      // ���������t�߂̎萔�ň��������̒l���Ԃ�̂�h�����߂ɑ傫�Ȓl�ɂ��Ă����B
+      // 引き分け付近の手数で引き分けの値が返るのを防ぐために大きな値にしておく。
       //limits.max_game_ply = 1 << 16;
 
-      // ���ʃ��[��������Ă����Ȃ��ƈ��������ɂȂ��Č������ɂ����B
+      // 入玉ルールも入れておかないと引き分けになって決着つきにくい。
       //limits.enteringKingRule = EnteringKingRule::EKR_27_POINT;
     }
 
-    // DrawValue�̐ݒ�
+    // DrawValueの設定
     {
-      // �X���b�h���Ƃɗp�ӂ��ĂȂ��̂�
-      // ���̃X���b�h�ŏ㏑�����ꂩ�˂Ȃ��B�d�����Ȃ����B
-      // �ǂ��������Ȃ�Ȃ�A0�ɂ��ׂ����Ǝv���B
+      // スレッドごとに用意してないので
+      // 他のスレッドで上書きされかねない。仕方がないが。
+      // どうせそうなるなら、0にすべきだと思う。
       //drawValueTable[REPETITION_DRAW][BLACK] = VALUE_ZERO;
       //drawValueTable[REPETITION_DRAW][WHITE] = VALUE_ZERO;
     }
 
-    // this_thread�Ɋւ��āB
+    // this_threadに関して。
     {
       auto th = pos.this_thread();
 
@@ -1789,10 +1789,10 @@ namespace Learner
       th->selDepth = 0;
       th->rootDepth = DEPTH_ZERO;
 
-      // �T���m�[�h���̃[��������
+      // 探索ノード数のゼロ初期化
       th->nodes = 0;
 
-      // history�ނ�S���N���A����B���̏������͏������Ԃ������邵�A�T���̐��x�͂ނ��뉺����̂őP���͂悭�킩��Ȃ��B
+      // history類を全部クリアする。この初期化は少し時間がかかるし、探索の精度はむしろ下がるので善悪はよくわからない。
       // th->clear();
 
       int ct = int(Options["Contempt"]) * PawnValueEg / 100; // From centipawns
@@ -1813,7 +1813,7 @@ namespace Learner
       for (int i = 7; i > 0; i--)
         (ss - i)->continuationHistory = &th->continuationHistory[NO_PIECE][0]; // Use as sentinel
 
-      // rootMoves�̐ݒ�
+      // rootMovesの設定
       auto& rootMoves = th->rootMoves;
 
       rootMoves.clear();
@@ -1823,33 +1823,33 @@ namespace Learner
       assert(!rootMoves.empty());
 
       //#if defined(USE_GLOBAL_OPTIONS)
-      // �T���X���b�h���Ƃ̒u���\�̐�����Ǘ����Ă���͂��Ȃ̂ŁA
-      // �V�K�̒T���ł��邩��A���̃X���b�h�ɑ΂���u���\�̐���𑝂₷�B
+      // 探索スレッドごとの置換表の世代を管理しているはずなので、
+      // 新規の探索であるから、このスレッドに対する置換表の世代を増やす。
             //TT.new_search(th->thread_id());
 
-            // ��������new_search���Ăяo����1��O�̒T�����ʂ��g���Ȃ��đ��Ƃ������Ƃ͂���̂ł́c�B
-            // �����ł���͂�炸�ɁA�Ăяo������1�ǂ��Ƃ�TT.new_search(th->thread_id())�����ׂ��ł́c�B
+            // ↑ここでnew_searchを呼び出すと1手前の探索結果が使えなくて損ということはあるのでは…。
+            // ここでこれはやらずに、呼び出し側で1局ごとにTT.new_search(th->thread_id())をやるべきでは…。
 
-            // ���@����̏I�ǐ}�Ɏ���̂�����������̂ŁA���t�������ɂ͒u���\�͑S�X�����ʂŎg���悤�ɂ���B
+            // →　同一の終局図に至るのを回避したいので、教師生成時には置換表は全スレ共通で使うようにする。
       //#endif
     }
   }
 
-  // �ǂ݋؂ƕ]���l�̃y�A�BLearner::search(),Learner::qsearch()���Ԃ��B
+  // 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
   typedef std::pair<Value, std::vector<Move> > ValueAndPV;
 
-  // �Î~�T���B
+  // 静止探索。
   //
-  // �O�����) pos.set_this_thread(Threads[thread_id])�ŒT���X���b�h���ݒ肳��Ă��邱�ƁB
-  // �@�܂��AThreads.stop������ƒT���𒆒f���Ă��܂��̂ŁA���̂Ƃ���PV�͐������Ȃ��B
-  // �@search()����߂������ƁAThreads.stop == true�Ȃ�A���̒T�����ʂ�p���Ă͂Ȃ�Ȃ��B
-  // �@���ƁA�Ăяo���O�́AThreads.stop == false�̏�ԂŌĂяo���Ȃ��ƁA�T���𒆒f���ĕԂ��Ă��܂��̂Œ��ӁB
+  // 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
+  // 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+  // 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
+  // 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
   //
-  // �l�܂���Ă���ꍇ�́APV�z���MOVE_RESIGN���Ԃ�B
+  // 詰まされている場合は、PV配列にMOVE_RESIGNが返る。
   //
-  // ������alpha,beta���w��ł���悤�ɂ��Ă������A���ꂪ���̑��ŒT�������Ƃ��̌��ʂ�
-  // �u���\�ɏ������ނ̂ŁA���̑��ɑ΂��Ď}���肪�o����悤�Ȓl���������܂�Ċw�K�̂Ƃ���
-  // �����e��������̂ŁA���͈̔͂��w��ł���悤�ɂ���̂���߂邱�Ƃɂ����B
+  // 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
+  // 置換表に書き込むので、その窓に対して枝刈りが出来るような値が書き込まれて学習のときに
+  // 悪い影響があるので、窓の範囲を指定できるようにするのをやめることにした。
   ValueAndPV qsearch(Position& pos)
   {
     Stack stack[MAX_PLY + 10], * ss = stack + 7;
@@ -1857,9 +1857,9 @@ namespace Learner
     std::vector<Move> pvs;
 
     init_for_search(pos, ss);
-    ss->pv = pv; // �Ƃ肠�����_�~�[�łǂ����o�b�t�@���Ȃ��Ƃ����Ȃ��B
+    ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
-    // �l�܂���Ă���̂�
+    // 詰まされているのか
     if (pos.is_mated())
     {
       pvs.push_back(MOVE_NONE);
@@ -1868,28 +1868,28 @@ namespace Learner
 
     auto bestValue = ::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, DEPTH_ZERO);
 
-    // ����ꂽPV��Ԃ��B
+    // 得られたPVを返す。
     for (Move* p = &ss->pv[0]; is_ok(*p); ++p)
       pvs.push_back(*p);
 
     return ValueAndPV(bestValue, pvs);
   }
 
-  // �ʏ�T���B�[��depth(�����Ŏw��)�B
-  // 3��ǂݎ��̃X�R�A���~�����Ȃ�A
+  // 通常探索。深さdepth(整数で指定)。
+  // 3手読み時のスコアが欲しいなら、
   //   auto v = search(pos,3);
-  // �̂悤�ɂ��ׂ��B
-  // v.first�ɕ]���l�Av.second��PV��������B
-  // multi pv���L���̂Ƃ��́Apos.this_thread()->rootMoves[N].pv�ɂ���PV(�ǂ݋�)�̔z�񂪓�����B
-  // multi pv�̎w��͂��̊֐��̈���multiPV�ōs�Ȃ��B(Options["MultiPV"]�̒l�͖��������)
+  // のようにすべし。
+  // v.firstに評価値、v.secondにPVが得られる。
+  // multi pvが有効のときは、pos.this_thread()->rootMoves[N].pvにそのPV(読み筋)の配列が得られる。
+  // multi pvの指定はこの関数の引数multiPVで行なう。(Options["MultiPV"]の値は無視される)
   // 
-  // root�ł̐錾��������͂��Ȃ��̂�(�������ʓ|�Ȃ̂�)�A�����ł͍s��Ȃ��B
-  // �Ăяo�����ŏ������邱�ƁB
+  // rootでの宣言勝ち判定はしないので(扱いが面倒なので)、ここでは行わない。
+  // 呼び出し側で処理すること。
   //
-  // �O�����) pos.set_this_thread(Threads[thread_id])�ŒT���X���b�h���ݒ肳��Ă��邱�ƁB
-  // �@�܂��AThreads.stop������ƒT���𒆒f���Ă��܂��̂ŁA���̂Ƃ���PV�͐������Ȃ��B
-  // �@search()����߂������ƁAThreads.stop == true�Ȃ�A���̒T�����ʂ�p���Ă͂Ȃ�Ȃ��B
-  // �@���ƁA�Ăяo���O�́AThreads.stop == false�̏�ԂŌĂяo���Ȃ��ƁA�T���𒆒f���ĕԂ��Ă��܂��̂Œ��ӁB
+  // 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
+  // 　また、Threads.stopが来ると探索を中断してしまうので、そのときのPVは正しくない。
+  // 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
+  // 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 
   ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, uint64_t nodesLimit /* = 0 */)
   {
@@ -1907,9 +1907,9 @@ namespace Learner
 
     init_for_search(pos, ss);
 
-    ss->pv = pv; // �Ƃ肠�����_�~�[�łǂ����o�b�t�@���Ȃ��Ƃ����Ȃ��B
+    ss->pv = pv; // とりあえずダミーでどこかバッファがないといけない。
 
-    // this_thread�Ɋ֘A����ϐ��̏�����
+    // this_threadに関連する変数の初期化
     auto th = pos.this_thread();
     auto& rootDepth = th->rootDepth;
     auto& pvIdx = th->pvIdx;
@@ -1918,13 +1918,13 @@ namespace Learner
     auto& completedDepth = th->completedDepth;
     auto& selDepth = th->selDepth;
 
-    // bestmove�Ƃ��Ă����̋ǖʂ̏��N��T������@�\
+    // bestmoveとしてしこの局面の上位N個を探索する機能
     //size_t multiPV = Options["MultiPV"];
 
-    // ���̋ǖʂł̎w����̐��������Ă͂����Ȃ�
+    // この局面での指し手の数を上回ってはいけない
     multiPV = std::min(multiPV, rootMoves.size());
 
-    // �m�[�h������MultiPV�̒l���|���Ă����Ȃ��ƁAdepth�Œ�AMultiPV����ɂ����Ƃ���1�̌���ɓ���node�����v�l�������ƂɂȂ�Ȃ��B
+    // ノード制限にMultiPVの値を掛けておかないと、depth固定、MultiPVありにしたときに1つの候補手に同じnodeだけ思考したことにならない。
     nodesLimit *= multiPV;
 
     Value alpha = -VALUE_INFINITE;
@@ -1933,9 +1933,9 @@ namespace Learner
     Value bestValue = -VALUE_INFINITE;
 
     while ((rootDepth += ONE_PLY) <= depth
-      // node�����𒴂����ꍇ�����̃��[�v�𔲂���
-      // �T���m�[�h���́A���̊֐��̈����œn����Ă���B
-      && !(nodesLimit /*node��������*/ && th->nodes.load(std::memory_order_relaxed) >= nodesLimit)
+      // node制限を超えた場合もこのループを抜ける
+      // 探索ノード数は、この関数の引数で渡されている。
+      && !(nodesLimit /*node制限あり*/ && th->nodes.load(std::memory_order_relaxed) >= nodesLimit)
       )
     {
       for (RootMove& rm : rootMoves)
@@ -1955,10 +1955,10 @@ namespace Learner
               break;
         }
 
-        // ���ꂼ���depth��PV line�ɑ΂���USI info�ŏo�͂���selDepth
+        // それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
         selDepth = 0;
 
-        // depth 5�ȏ�ɂ����Ă�aspiration search�ɐ؂�ւ���B
+        // depth 5以上においてはaspiration searchに切り替える。
         if (rootDepth >= 5 * ONE_PLY)
         {
           delta = Value(20);
@@ -1979,8 +1979,8 @@ namespace Learner
           stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
           //my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + pvIdx, rootMoves.size() - pvIdx);
 
-          // fail low/high�ɑ΂���aspiration window���L����B
-          // �������A�����Ŏw�肳��Ă����l�ɂȂ��Ă�����A����fail low/high�����Ƃ���break����B
+          // fail low/highに対してaspiration windowを広げる。
+          // ただし、引数で指定されていた値になっていたら、もうfail low/high扱いとしてbreakする。
           if (bestValue <= alpha)
           {
             beta = (alpha + beta) / 2;
@@ -2002,7 +2002,7 @@ namespace Learner
           delta += delta / 4 + 5;
           assert(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 
-          // �\���`�F�b�N
+          // 暴走チェック
           //assert(th->nodes.load(std::memory_order_relaxed) <= 1000000 );
         }
 
@@ -2014,9 +2014,9 @@ namespace Learner
       completedDepth = rootDepth;
     }
 
-    // ����PV�A�r����NULL_MOVE�̉\�������邩���m��Ȃ��̂Ŕr�����邽�߂�is_ok()��ʂ��B
-    // ���@PV�Ȃ̂�NULL_MOVE�͂��Ȃ����ƂɂȂ��Ă���͂������A
-    //     MOVE_WIN���˂����܂�Ă��邱�Ƃ͂Ȃ��B(���܂̂Ƃ���)
+    // このPV、途中でNULL_MOVEの可能性があるかも知れないので排除するためにis_ok()を通す。
+    // →　PVなのでNULL_MOVEはしないことになっているはずだし、
+    //     MOVE_WINも突っ込まれていることはない。(いまのところ)
     for (Move move : rootMoves[0].pv)
     {
       if (!is_ok(move))
@@ -2026,7 +2026,7 @@ namespace Learner
 
     //sync_cout << rootDepth << sync_endl;
 
-    // multiPV�����l�����āArootMoves[0]��score��bestValue�Ƃ��ĕԂ��B
+    // multiPV時を考慮して、rootMoves[0]のscoreをbestValueとして返す。
     bestValue = rootMoves[0].score;
 
     return ValueAndPV(bestValue, pvs);

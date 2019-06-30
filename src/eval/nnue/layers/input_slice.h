@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の層InputSliceの定義
+// NNUE評価関数の層InputSliceの定義
 
 #ifndef _NNUE_LAYERS_INPUT_SLICE_H_
 #define _NNUE_LAYERS_INPUT_SLICE_H_

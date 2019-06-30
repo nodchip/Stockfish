@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量の変換を行うクラス
+// NNUE評価関数の入力特徴量の変換を行うクラス
 
 #ifndef _NNUE_FEATURE_TRANSFORMER_H_
 #define _NNUE_FEATURE_TRANSFORMER_H_

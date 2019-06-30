@@ -97,8 +97,8 @@ struct LimitsType {
   TimePoint time[COLOR_NB], inc[COLOR_NB], npmsec, movetime, startTime;
   int movestogo, depth, mate, perft, infinite;
   int64_t nodes;
-  // ‰æ–Ê‚Éo—Í‚µ‚È‚¢ƒTƒCƒŒƒ“ƒgƒ‚[ƒh(ƒvƒƒZƒX“à‚Å‚Ì˜A‘±©ŒÈ‘Îí‚Ì‚Æ‚«—p)
-  // ‚±‚Ì‚Æ‚«PV‚ğo—Í‚µ‚È‚¢B
+  // ç”»é¢ã«å‡ºåŠ›ã—ãªã„ã‚µã‚¤ãƒ¬ãƒ³ãƒˆãƒ¢ãƒ¼ãƒ‰(ãƒ—ãƒ­ã‚»ã‚¹å†…ã§ã®é€£ç¶šè‡ªå·±å¯¾æˆ¦ã®ã¨ãç”¨)
+  // ã“ã®ã¨ãPVã‚’å‡ºåŠ›ã—ãªã„ã€‚
   bool silent;
 };
 

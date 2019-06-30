@@ -244,11 +244,11 @@ Position& Position::set(const string& fenStr, bool isChess960, StateInfo* si, Th
   st = si;
 
 #if defined(EVAL_NNUE)
-  // evalList��clear�B���memset�Ń[���N���A�����Ƃ��ɃN���A����Ă��邪�c�B
+  // evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
   evalList.clear();
 
-  // PieceList���X�V�����ŁA�ǂ̋�ǂ��ɂ��邩��ݒ肵�Ȃ���΂Ȃ�Ȃ����A
-  // ���ꂼ��̋���ǂ��܂Ŏg�������̃J�E���^�[
+  // PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
+  // それぞれの駒をどこまで使ったかのカウンター
   PieceNumber next_piece_number = PIECE_NUMBER_ZERO;
 #endif  // defined(EVAL_NNUE)
 
@@ -270,10 +270,10 @@ Position& Position::set(const string& fenStr, bool isChess960, StateInfo* si, Th
 
 #if defined(EVAL_NNUE)
           PieceNumber piece_no =
-            (idx == W_KING) ? PIECE_NUMBER_WKING : // ����
-            (idx == B_KING) ? PIECE_NUMBER_BKING : // ����
-            next_piece_number++; // ����ȊO
-          evalList.put_piece(piece_no, sq, pc); // sq�̏���pc�̋��z�u����
+            (idx == W_KING) ? PIECE_NUMBER_WKING : // 先手玉
+            (idx == B_KING) ? PIECE_NUMBER_BKING : // 後手玉
+            next_piece_number++; // それ以外
+          evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
 #endif  // defined(EVAL_NNUE)
 
           ++sq;
@@ -854,7 +854,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       st->rule50 = 0;
 
 #if defined(EVAL_NNUE)
-      dp.dirty_num = 2; // ���������2��
+      dp.dirty_num = 2; // 動いた駒は2個
 
       dp.pieceNo[1] = piece_no1;
       dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no1);
@@ -1085,8 +1085,8 @@ template<bool Do>
 void Position::do_castling(Color us, Square from, Square& to, Square& rfrom, Square& rto) {
 #if defined(EVAL_NNUE)
   auto& dp = st->dirtyPiece;
-  // �����v�Z�̂��߂Ɉړ��������StateInfo�ɋL�^���Ă����B
-  dp.dirty_num = 2; // ���������2��
+  // 差分計算のために移動した駒をStateInfoに記録しておく。
+  dp.dirty_num = 2; // 動いた駒は2個
 
   PieceNumber piece_no0;
   PieceNumber piece_no1;
@@ -1485,10 +1485,10 @@ PieceNumber Position::piece_no_of(Square sq) const
 #endif  // defined(EVAL_NNUE)
 
 #if defined(EVAL_LEARN)
-// ���ǖʂŎw���肪�Ȃ������e�X�g����B�w���萶�����[�`����p����̂ő����Ȃ��B�T�����ɂ͎g��Ȃ����ƁB
+// 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
 bool Position::is_mated() const
 {
-  // �s���ŋl�߂������ł���p�^�[���͂Ȃ��̂�LEGAL_ALL�ł���K�v�͂Ȃ��B
+  // 不成で詰めろを回避できるパターンはないのでLEGAL_ALLである必要はない。
   return MoveList<LEGAL>(*this).size() == 0;
 }
 #endif // EVAL_LEARN

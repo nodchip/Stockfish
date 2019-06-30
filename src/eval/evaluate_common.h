@@ -1,4 +1,4 @@
-﻿#ifndef _EVALUATE_COMMON_H_
+#ifndef _EVALUATE_COMMON_H_
 #define _EVALUATE_COMMON_H_
 
 // いまどきの手番つき評価関数(EVAL_KPPTとEVAL_KPP_KKPT)の共用header的なもの。

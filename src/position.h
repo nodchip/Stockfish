@@ -63,7 +63,7 @@ struct StateInfo {
 #if defined(EVAL_NNUE)
   Eval::NNUE::Accumulator accumulator;
 
-  // •]‰¿’l‚Ì·•ªŒvZ‚ÌŠÇ——p
+  // è©•ä¾¡å€¤ã®å·®åˆ†è¨ˆç®—ã®ç®¡ç†ç”¨
   Eval::DirtyPiece dirtyPiece;
 #endif  // defined(EVAL_NNUE)
 };
@@ -81,7 +81,7 @@ typedef std::unique_ptr<std::deque<StateInfo>> StateListPtr;
 /// traversing the search tree.
 class Thread;
 
-// pack‚³‚ê‚½sfen
+// packã•ã‚ŒãŸsfen
 struct PackedSfen { uint8_t data[32]; };
 
 class Position {
@@ -183,34 +183,34 @@ public:
 #if defined(EVAL_NNUE) || defined(EVAL_LEARN)
   // --- StateInfo
 
-  // Œ»İ‚Ì‹Ç–Ê‚É‘Î‰‚·‚éStateInfo‚ğ•Ô‚·B
-  // ‚½‚Æ‚¦‚ÎAstate()->capturedPiece‚Å‚ ‚ê‚ÎA‘O‹Ç–Ê‚Å•ßŠl‚³‚ê‚½‹î‚ªŠi”[‚³‚ê‚Ä‚¢‚éB
+  // ç¾åœ¨ã®å±€é¢ã«å¯¾å¿œã™ã‚‹StateInfoã‚’è¿”ã™ã€‚
+  // ãŸã¨ãˆã°ã€state()->capturedPieceã§ã‚ã‚Œã°ã€å‰å±€é¢ã§æ•ç²ã•ã‚ŒãŸé§’ãŒæ ¼ç´ã•ã‚Œã¦ã„ã‚‹ã€‚
   StateInfo* state() const { return st; }
 
-  // •]‰¿ŠÖ”‚Åg‚¤‚½‚ß‚ÌA‚Ç‚Ì‹î”Ô†‚Ì‹î‚ª‚Ç‚±‚É‚ ‚é‚©‚È‚Ç‚Ìî•ñB
+  // è©•ä¾¡é–¢æ•°ã§ä½¿ã†ãŸã‚ã®ã€ã©ã®é§’ç•ªå·ã®é§’ãŒã©ã“ã«ã‚ã‚‹ã‹ãªã©ã®æƒ…å ±ã€‚
   const Eval::EvalList* eval_list() const { return &evalList; }
 #endif  // defined(EVAL_NNUE) || defined(EVAL_LEARN)
 
 #if defined(EVAL_LEARN)
-  // Œ»‹Ç–Ê‚Åw‚µè‚ª‚È‚¢‚©‚ğƒeƒXƒg‚·‚éBw‚µè¶¬ƒ‹[ƒ`ƒ“‚ğ—p‚¢‚é‚Ì‚Å‘¬‚­‚È‚¢B’Tõ’†‚É‚Íg‚í‚È‚¢‚±‚ÆB
+  // ç¾å±€é¢ã§æŒ‡ã—æ‰‹ãŒãªã„ã‹ã‚’ãƒ†ã‚¹ãƒˆã™ã‚‹ã€‚æŒ‡ã—æ‰‹ç”Ÿæˆãƒ«ãƒ¼ãƒãƒ³ã‚’ç”¨ã„ã‚‹ã®ã§é€Ÿããªã„ã€‚æ¢ç´¢ä¸­ã«ã¯ä½¿ã‚ãªã„ã“ã¨ã€‚
   bool is_mated() const;
 
-  // -- sfen‰»ƒwƒ‹ƒp
+  // -- sfenåŒ–ãƒ˜ãƒ«ãƒ‘
 
-  // pack‚³‚ê‚½sfen‚ğ“¾‚éBˆø”‚Éw’è‚µ‚½ƒoƒbƒtƒ@‚É•Ô‚·B
-  // gamePly‚Ípack‚ÉŠÜ‚ß‚È‚¢B
+  // packã•ã‚ŒãŸsfenã‚’å¾—ã‚‹ã€‚å¼•æ•°ã«æŒ‡å®šã—ãŸãƒãƒƒãƒ•ã‚¡ã«è¿”ã™ã€‚
+  // gamePlyã¯packã«å«ã‚ãªã„ã€‚
   void sfen_pack(PackedSfen& sfen);
 
-  // ªsfen‚ğŒo—R‚·‚é‚Æ’x‚¢‚Ì‚Å’¼Úpack‚³‚ê‚½sfen‚ğƒZƒbƒg‚·‚éŠÖ”‚ğì‚Á‚½B
-  // pos.set(sfen_unpack(data),si,th); ‚Æ“™‰¿B
-  // “n‚³‚ê‚½‹Ç–Ê‚É–â‘è‚ª‚ ‚Á‚ÄAƒGƒ‰[‚Ì‚Æ‚«‚Í”ñ0‚ğ•Ô‚·B
-  // PackedSfen‚ÉgamePly‚ÍŠÜ‚Ü‚È‚¢‚Ì‚Å•œŒ³‚Å‚«‚È‚¢B‚»‚±‚ğİ’è‚µ‚½‚¢‚Ì‚Å‚ ‚ê‚Îˆø”‚Åw’è‚·‚é‚±‚ÆB
+  // â†‘sfenã‚’çµŒç”±ã™ã‚‹ã¨é…ã„ã®ã§ç›´æ¥packã•ã‚ŒãŸsfenã‚’ã‚»ãƒƒãƒˆã™ã‚‹é–¢æ•°ã‚’ä½œã£ãŸã€‚
+  // pos.set(sfen_unpack(data),si,th); ã¨ç­‰ä¾¡ã€‚
+  // æ¸¡ã•ã‚ŒãŸå±€é¢ã«å•é¡ŒãŒã‚ã£ã¦ã€ã‚¨ãƒ©ãƒ¼ã®ã¨ãã¯é0ã‚’è¿”ã™ã€‚
+  // PackedSfenã«gamePlyã¯å«ã¾ãªã„ã®ã§å¾©å…ƒã§ããªã„ã€‚ãã“ã‚’è¨­å®šã—ãŸã„ã®ã§ã‚ã‚Œã°å¼•æ•°ã§æŒ‡å®šã™ã‚‹ã“ã¨ã€‚
   int set_from_packed_sfen(const PackedSfen& sfen, StateInfo* si, Thread* th, bool mirror = false);
 
-  // ”Õ–Ê‚Æè‹îAè”Ô‚ğ—^‚¦‚ÄA‚»‚Ìsfen‚ğ•Ô‚·B
+  // ç›¤é¢ã¨æ‰‹é§’ã€æ‰‹ç•ªã‚’ä¸ãˆã¦ã€ãã®sfenã‚’è¿”ã™ã€‚
   //static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
 
-  // c‘¤‚Ì‹Ê‚ÌˆÊ’u‚ğ•Ô‚·B
+  // cå´ã®ç‰ã®ä½ç½®ã‚’è¿”ã™ã€‚
   Square king_square(Color c) const { return pieceList[make_piece(c, KING)][0]; }
 #endif // EVAL_LEARN
 
@@ -228,7 +228,7 @@ private:
   void do_castling(Color us, Square from, Square& to, Square& rfrom, Square& rto);
 
 #if defined(EVAL_NNUE)
-  // ”Õã‚Ìsq‚Ì¡‚É‚ ‚é‹î‚ÌPieceNumber‚ğ•Ô‚·B
+  // ç›¤ä¸Šã®sqã®å‡ã«ã‚ã‚‹é§’ã®PieceNumberã‚’è¿”ã™ã€‚
   PieceNumber piece_no_of(Square sq) const;
 #endif  // defined(EVAL_NNUE)
 
@@ -250,7 +250,7 @@ private:
   bool chess960;
 
 #if defined(EVAL_NNUE) || defined(EVAL_LEARN)
-  // •]‰¿ŠÖ”‚Å—p‚¢‚é‹î‚ÌƒŠƒXƒg
+  // è©•ä¾¡é–¢æ•°ã§ç”¨ã„ã‚‹é§’ã®ãƒªã‚¹ãƒˆ
   Eval::EvalList evalList;
 #endif  // defined(EVAL_NNUE) || defined(EVAL_LEARN)
 };

@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の学習クラステンプレートのSum用特殊化
+// NNUE評価関数の学習クラステンプレートのSum用特殊化
 
 #ifndef _NNUE_TRAINER_SUM_H_
 #define _NNUE_TRAINER_SUM_H_

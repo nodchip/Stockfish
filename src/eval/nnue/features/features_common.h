@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量の共通ヘッダ
+// NNUE評価関数の入力特徴量の共通ヘッダ
 
 #ifndef _NNUE_FEATURES_COMMON_H_
 #define _NNUE_FEATURES_COMMON_H_

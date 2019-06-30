@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の層Sumの定義
+// NNUE評価関数の層Sumの定義
 
 #ifndef _NNUE_LAYERS_SUM_H_
 #define _NNUE_LAYERS_SUM_H_

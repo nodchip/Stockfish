@@ -75,16 +75,16 @@ std::string move(Move m, bool chess960);
 std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
 Move to_move(const Position& pos, std::string& str);
 
-// •]‰¿ŠÖ”‚ğ“Ç‚İ‚ñ‚¾‚©‚Ìƒtƒ‰ƒOB‚±‚ê‚Íevaldir‚Ì•ÏX‚É‚Æ‚à‚È‚Á‚Äfalse‚É‚·‚éB
+// è©•ä¾¡é–¢æ•°ã‚’èª­ã¿è¾¼ã‚“ã ã‹ã®ãƒ•ãƒ©ã‚°ã€‚ã“ã‚Œã¯evaldirã®å¤‰æ›´ã«ã¨ã‚‚ãªã£ã¦falseã«ã™ã‚‹ã€‚
 extern bool load_eval_finished; // = false;
 } // namespace UCI
 
 extern UCI::OptionsMap Options;
 
-// USI‚Ì"isready"ƒRƒ}ƒ“ƒh‚ªŒÄ‚Ño‚³‚ê‚½‚Æ‚«‚Ìˆ—B‚±‚Ì‚Æ‚«‚É•]‰¿ŠÖ”‚Ì“Ç‚İ‚İ‚È‚Ç‚ğs‚È‚¤B
-// benchmarkƒRƒ}ƒ“ƒh‚Ìƒnƒ“ƒhƒ‰‚È‚Ç‚Å"isready"‚ª—ˆ‚Ä‚¢‚È‚¢‚Æ‚«‚É•]‰¿ŠÖ”‚ğ“Ç‚İ‚Ü‚¹‚½‚¢‚Æ‚«‚É—p‚¢‚éB
-// skipCorruptCheck == true‚Ì‚Æ‚«‚Í•]‰¿ŠÖ”‚Ì2“x–Ú‚Ì“Ç‚İ‚İ‚Ì‚Æ‚«‚Ìcheck sum‚É‚æ‚éƒƒ‚ƒŠ”j‘¹ƒ`ƒFƒbƒN‚ğÈ—ª‚·‚éB
-// ¦@‚±‚ÌŠÖ”‚ÍAStockfish‚É‚Í‚È‚¢‚ª‚È‚¢‚Æ•s•Ö‚È‚Ì‚Å’Ç‰Á‚µ‚Ä‚¨‚­B
+// USIã®"isready"ã‚³ãƒãƒ³ãƒ‰ãŒå‘¼ã³å‡ºã•ã‚ŒãŸã¨ãã®å‡¦ç†ã€‚ã“ã®ã¨ãã«è©•ä¾¡é–¢æ•°ã®èª­ã¿è¾¼ã¿ãªã©ã‚’è¡Œãªã†ã€‚
+// benchmarkã‚³ãƒãƒ³ãƒ‰ã®ãƒãƒ³ãƒ‰ãƒ©ãªã©ã§"isready"ãŒæ¥ã¦ã„ãªã„ã¨ãã«è©•ä¾¡é–¢æ•°ã‚’èª­ã¿è¾¼ã¾ã›ãŸã„ã¨ãã«ç”¨ã„ã‚‹ã€‚
+// skipCorruptCheck == trueã®ã¨ãã¯è©•ä¾¡é–¢æ•°ã®2åº¦ç›®ã®èª­ã¿è¾¼ã¿ã®ã¨ãã®check sumã«ã‚ˆã‚‹ãƒ¡ãƒ¢ãƒªç ´æãƒã‚§ãƒƒã‚¯ã‚’çœç•¥ã™ã‚‹ã€‚
+// â€»ã€€ã“ã®é–¢æ•°ã¯ã€Stockfishã«ã¯ãªã„ãŒãªã„ã¨ä¸ä¾¿ãªã®ã§è¿½åŠ ã—ã¦ãŠãã€‚
 void is_ready(bool skipCorruptCheck = false);
 
 extern const char* StartFEN;

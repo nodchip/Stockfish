@@ -1,4 +1,4 @@
-﻿// NNUE評価関数で用いる入力特徴量とネットワーク構造
+// NNUE評価関数で用いる入力特徴量とネットワーク構造
 
 #ifndef _NNUE_ARCHITECTURE_H_
 #define _NNUE_ARCHITECTURE_H_

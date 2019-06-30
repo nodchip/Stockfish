@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量Pの定義
+// NNUE評価関数の入力特徴量Pの定義
 
 #ifndef _NNUE_FEATURES_P_H_
 #define _NNUE_FEATURES_P_H_

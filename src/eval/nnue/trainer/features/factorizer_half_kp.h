@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の特徴量変換クラステンプレートのHalfKP用特殊化
+// NNUE評価関数の特徴量変換クラステンプレートのHalfKP用特殊化
 
 #ifndef _NNUE_TRAINER_FEATURES_FACTORIZER_HALF_KP_H_
 #define _NNUE_TRAINER_FEATURES_FACTORIZER_HALF_KP_H_

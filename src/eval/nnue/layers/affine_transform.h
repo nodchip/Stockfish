@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の層AffineTransformの定義
+// NNUE評価関数の層AffineTransformの定義
 
 #ifndef _NNUE_LAYERS_AFFINE_TRANSFORM_H_
 #define _NNUE_LAYERS_AFFINE_TRANSFORM_H_

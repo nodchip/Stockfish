@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の学習時用のコード
+// NNUE評価関数の学習時用のコード
 
 #if defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

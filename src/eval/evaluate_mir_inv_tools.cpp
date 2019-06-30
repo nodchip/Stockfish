@@ -1,4 +1,4 @@
-﻿#if defined(EVAL_NNUE) || defined(EVAL_LEARN)
+#if defined(EVAL_NNUE) || defined(EVAL_LEARN)
 
 #include "evaluate_mir_inv_tools.h"
 

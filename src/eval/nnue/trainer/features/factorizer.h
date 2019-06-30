@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の特徴量変換クラステンプレート
+// NNUE評価関数の特徴量変換クラステンプレート
 
 #ifndef _NNUE_TRAINER_FEATURES_FACTORIZER_H_
 #define _NNUE_TRAINER_FEATURES_FACTORIZER_H_

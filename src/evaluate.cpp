@@ -924,7 +924,7 @@ ExtBonaPiece kpp_board_index[PIECE_NB] = {
     { f_king, e_king },
     { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
 
-    // ��肩�猩���ꍇ�Bf��e������ւ��B
+    // 後手から見た場合。fとeが入れ替わる。
     { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
     { e_pawn, f_pawn },
     { e_knight, f_knight },
@@ -932,11 +932,11 @@ ExtBonaPiece kpp_board_index[PIECE_NB] = {
     { e_rook, f_rook },
     { e_queen, f_queen },
     { e_king, f_king },
-    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // ���̐���͂Ȃ�
+    { BONA_PIECE_ZERO, BONA_PIECE_ZERO }, // 金の成りはない
 };
 
-// �����ŕێ����Ă���pieceListFw[]��������BonaPiece�ł��邩����������B
-// �� : �f�o�b�O�p�B�x���B
+// 内部で保持しているpieceListFw[]が正しいBonaPieceであるかを検査する。
+// 注 : デバッグ用。遅い。
 bool EvalList::is_valid(const Position& pos)
 {
   std::set<PieceNumber> piece_numbers;
@@ -952,28 +952,28 @@ bool EvalList::is_valid(const Position& pos)
   for (int i = 0; i < length(); ++i)
   {
     BonaPiece fw = pieceListFw[i];
-    // ����fw���{���ɑ��݂��邩��Position�N���X�̂ق��ɒ��ׂɍs���B
+    // このfwが本当に存在するかをPositionクラスのほうに調べに行く。
 
     if (fw == Eval::BONA_PIECE_ZERO) {
       continue;
     }
 
-    // �͈͊O
+    // 範囲外
     if (!(0 <= fw && fw < fe_end))
       return false;
 
-    // �Տ�̋�Ȃ̂ł��̋�{���ɑ��݂��邩���ׂɂ����B
+    // 盤上の駒なのでこの駒が本当に存在するか調べにいく。
     for (Piece pc = NO_PIECE; pc < PIECE_NB; ++pc)
     {
       auto pt = type_of(pc);
-      if (pt == NO_PIECE || pt == 7) // ���݂��Ȃ���
+      if (pt == NO_PIECE || pt == 7) // 存在しない駒
         continue;
 
-      // ��pc��BonaPiece�̊J�n�ԍ�
+      // 駒pcのBonaPieceの開始番号
       auto s = BonaPiece(kpp_board_index[pc].fw);
       if (s <= fw && fw < s + SQUARE_NB)
       {
-        // ���������̂ł��̋sq�̒n�_�ɂ��邩�𒲂ׂ�B
+        // 見つかったのでこの駒がsqの地点にあるかを調べる。
         Square sq = (Square)(fw - s);
         Piece pc2 = pos.piece_on(sq);
 
@@ -983,7 +983,7 @@ bool EvalList::is_valid(const Position& pos)
         goto Found;
       }
     }
-    // ���̂����݂��Ȃ���ł�����..
+    // 何故か存在しない駒であった..
     return false;
   Found:;
   }
