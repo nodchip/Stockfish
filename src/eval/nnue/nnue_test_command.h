@@ -1,4 +1,4 @@
-﻿// NNUE評価関数に関するUSI拡張コマンドのインターフェイス
+﻿// USI extended command interface for NNUE evaluation function
 
 #ifndef _NNUE_TEST_COMMAND_H_
 #define _NNUE_TEST_COMMAND_H_
@@ -9,13 +9,13 @@ namespace Eval {
 
 namespace NNUE {
 
-// NNUE評価関数に関するUSI拡張コマンド
+// USI extended command for NNUE evaluation function
 void TestCommand(Position& pos, std::istream& stream);
 
-}  // namespace NNUE
+} // namespace NNUE
 
-}  // namespace Eval
+} // namespace Eval
 
-#endif  // defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
+#endif // defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
 
 #endif

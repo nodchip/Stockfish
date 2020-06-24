@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量の変換を行うクラス
+﻿// Class that performs conversion of input features of NNUE evaluation function
 
 #ifndef _NNUE_FEATURE_TRANSFORMER_H_
 #define _NNUE_FEATURE_TRANSFORMER_H_
@@ -13,135 +13,135 @@
 
 namespace Eval {
 
-namespace NNUE {
+	namespace NNUE {
 
-// 入力特徴量変換器
-class FeatureTransformer {
- private:
-  // 片側分の出力の次元数
-  static constexpr IndexType kHalfDimensions = kTransformedFeatureDimensions;
+		// Input feature converter
+		class FeatureTransformer {
+		private:
+			// number of output dimensions for one side
+			static constexpr IndexType kHalfDimensions = kTransformedFeatureDimensions;
 
- public:
-  // 出力の型
-  using OutputType = TransformedFeatureType;
+		public:
+			// output type
+			using OutputType = TransformedFeatureType;
 
-  // 入出力の次元数
-  static constexpr IndexType kInputDimensions = RawFeatures::kDimensions;
-  static constexpr IndexType kOutputDimensions = kHalfDimensions * 2;
+			// number of input/output dimensions
+			static constexpr IndexType kInputDimensions = RawFeatures::kDimensions;
+			static constexpr IndexType kOutputDimensions = kHalfDimensions * 2;
 
-  // 順伝播用バッファのサイズ
-  static constexpr std::size_t kBufferSize =
-      kOutputDimensions * sizeof(OutputType);
+			// size of buffer for forward propagation
+			static constexpr std::size_t kBufferSize =
+				kOutputDimensions * sizeof(OutputType);
 
-  // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t GetHashValue() {
-    return RawFeatures::kHashValue ^ kOutputDimensions;
-  }
+			// Hash value embedded in the evaluation function file
+			static constexpr std::uint32_t GetHashValue() {
+				return RawFeatures::kHashValue ^ kOutputDimensions;
+			}
 
-  // 構造を表す文字列
-  static std::string GetStructureString() {
-    return RawFeatures::GetName() + "[" +
-        std::to_string(kInputDimensions) + "->" +
-        std::to_string(kHalfDimensions) + "x2]";
-  }
+			// a string representing the structure
+			static std::string GetStructureString() {
+				return RawFeatures::GetName() + "[" +
+					std::to_string(kInputDimensions) + "->" +
+					std::to_string(kHalfDimensions) + "x2]";
+			}
 
-  // パラメータを読み込む
-  bool ReadParameters(std::istream& stream) {
-    stream.read(reinterpret_cast<char*>(biases_),
-                kHalfDimensions * sizeof(BiasType));
-    stream.read(reinterpret_cast<char*>(weights_),
-                kHalfDimensions * kInputDimensions * sizeof(WeightType));
-    return !stream.fail();
-  }
+			// read parameters
+			bool ReadParameters(std::istream& stream) {
+				stream.read(reinterpret_cast<char*>(biases_),
+					kHalfDimensions * sizeof(BiasType));
+				stream.read(reinterpret_cast<char*>(weights_),
+					kHalfDimensions * kInputDimensions * sizeof(WeightType));
+				return !stream.fail();
+			}
 
-  // パラメータを書き込む
-  bool WriteParameters(std::ostream& stream) const {
-    stream.write(reinterpret_cast<const char*>(biases_),
-                 kHalfDimensions * sizeof(BiasType));
-    stream.write(reinterpret_cast<const char*>(weights_),
-                 kHalfDimensions * kInputDimensions * sizeof(WeightType));
-    return !stream.fail();
-  }
+			// write parameters
+			bool WriteParameters(std::ostream& stream) const {
+				stream.write(reinterpret_cast<const char*>(biases_),
+					kHalfDimensions * sizeof(BiasType));
+				stream.write(reinterpret_cast<const char*>(weights_),
+					kHalfDimensions * kInputDimensions * sizeof(WeightType));
+				return !stream.fail();
+			}
 
-  // 可能なら差分計算を進める
-  bool UpdateAccumulatorIfPossible(const Position& pos) const {
-    const auto now = pos.state();
-    if (now->accumulator.computed_accumulation) {
-      return true;
-    }
-    const auto prev = now->previous;
-    if (prev && prev->accumulator.computed_accumulation) {
-      UpdateAccumulator(pos);
-      return true;
-    }
-    return false;
-  }
+			// proceed with the difference calculation if possible
+			bool UpdateAccumulatorIfPossible(const Position& pos) const {
+				const auto now = pos.state();
+				if (now->accumulator.computed_accumulation) {
+					return true;
+				}
+				const auto prev = now->previous;
+				if (prev && prev->accumulator.computed_accumulation) {
+					UpdateAccumulator(pos);
+				return true;
+			}
+			return false;
+		}
 
-  // 入力特徴量を変換する
-  void Transform(const Position& pos, OutputType* output, bool refresh) const {
-    if (refresh || !UpdateAccumulatorIfPossible(pos)) {
-      RefreshAccumulator(pos);
-    }
-    const auto& accumulation = pos.state()->accumulator.accumulation;
+		// convert input features
+		void Transform(const Position& pos, OutputType* output, bool refresh) const {
+			if (refresh || !UpdateAccumulatorIfPossible(pos)) {
+				RefreshAccumulator(pos);
+			}
+			const auto& accumulation = pos.state()->accumulator.accumulation;
 #if defined(USE_AVX2)
-    constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
-    constexpr int kControl = 0b11011000;
-    const __m256i kZero = _mm256_setzero_si256();
+			constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
+			constexpr int kControl = 0b11011000;
+			const __m256i kZero = _mm256_setzero_si256();
 #elif defined(USE_SSE41)
-    constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
-    const __m128i kZero = _mm_setzero_si128();
+			constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
+			const __m128i kZero = _mm_setzero_si128();
 #elif defined(IS_ARM)
-    constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
-    const int8x8_t kZero = {0};
+			constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+			const int8x8_t kZero = { 0 };
 #endif
-    const Color perspectives[2] = {pos.side_to_move(), ~pos.side_to_move()};
-    for (IndexType p = 0; p < 2; ++p) {
-      const IndexType offset = kHalfDimensions * p;
+			const Color perspectives[2] = { pos.side_to_move(), ~pos.side_to_move() };
+			for (IndexType p = 0; p < 2; ++p) {
+				const IndexType offset = kHalfDimensions * p;
 #if defined(USE_AVX2)
-      auto out = reinterpret_cast<__m256i*>(&output[offset]);
-      for (IndexType j = 0; j < kNumChunks; ++j) {
-        __m256i sum0 =
+				auto out = reinterpret_cast<__m256i*>(&output[offset]);
+				for (IndexType j = 0; j < kNumChunks; ++j) {
+					__m256i sum0 =
 #if defined(__MINGW32__) || defined(__MINGW64__)
-          // HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Because the binary
-          //       compiled with g++ in MSYS2 crashes here because the output memory is not aligned
-          //       even though alignas is specified.
-          _mm256_loadu_si256
+						// HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Because the binary
+						// compiled with g++ in MSYS2 crashes here because the output memory is not aligned
+						// even though alignas is specified.
+						_mm256_loadu_si256
 #else
-          _mm256_load_si256
+						_mm256_load_si256
 #endif
-          (&reinterpret_cast<const __m256i*>(
-            accumulation[perspectives[p]][0])[j * 2 + 0]);
-        __m256i sum1 =
+						(&reinterpret_cast<const __m256i*>(
+							accumulation[perspectives[p]][0])[j * 2 + 0]);
+					__m256i sum1 =
 #if defined(__MINGW32__) || defined(__MINGW64__)
-          _mm256_loadu_si256
+						_mm256_loadu_si256
 #else
-          _mm256_load_si256
+						_mm256_load_si256
 #endif
-          (&reinterpret_cast<const __m256i*>(
-            accumulation[perspectives[p]][0])[j * 2 + 1]);
-        for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
-          sum0 = _mm256_add_epi16(sum0, reinterpret_cast<const __m256i*>(
-              accumulation[perspectives[p]][i])[j * 2 + 0]);
-          sum1 = _mm256_add_epi16(sum1, reinterpret_cast<const __m256i*>(
-              accumulation[perspectives[p]][i])[j * 2 + 1]);
-        }
+						(&reinterpret_cast<const __m256i*>(
+							accumulation[perspectives[p]][0])[j * 2 + 1]);
+					for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
+						sum0 = _mm256_add_epi16(sum0, reinterpret_cast<const __m256i*>(
+							accumulation[perspectives[p]][i])[j * 2 + 0]);
+						sum1 = _mm256_add_epi16(sum1, reinterpret_cast<const __m256i*>(
+							accumulation[perspectives[p]][i])[j * 2 + 1]);
+					}
 #if defined(__MINGW32__) || defined(__MINGW64__)
-        _mm256_storeu_si256
+					_mm256_storeu_si256
 #else
-        _mm256_store_si256
+					_mm256_store_si256
 #endif
-        (&out[j], _mm256_permute4x64_epi64(_mm256_max_epi8(
-            _mm256_packs_epi16(sum0, sum1), kZero), kControl));
-      }
+						(&out[j], _mm256_permute4x64_epi64(_mm256_max_epi8(
+							_mm256_packs_epi16(sum0, sum1), kZero), kControl));
+				}
 #elif defined(USE_SSE41)
-      auto out = reinterpret_cast<__m128i*>(&output[offset]);
-      for (IndexType j = 0; j < kNumChunks; ++j) {
-        __m128i sum0 = _mm_load_si128(&reinterpret_cast<const __m128i*>(
-            accumulation[perspectives[p]][0])[j * 2 + 0]);
-        __m128i sum1 = _mm_load_si128(&reinterpret_cast<const __m128i*>(
-            accumulation[perspectives[p]][0])[j * 2 + 1]);
-        for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
-          sum0 = _mm_add_epi16(sum0, reinterpret_cast<const __m128i*>(
+				auto out = reinterpret_cast<__m128i*>(&output[offset]);
+				for (IndexType j = 0; j < kNumChunks; ++j) {
+					__m128i sum0 = _mm_load_si128(&reinterpret_cast<const __m128i*>(
+						accumulation[perspectives[p]][0])[j * 2 + 0]);
+					__m128i sum1 = _mm_load_si128(&reinterpret_cast<const __m128i*>(
+						accumulation[perspectives[p]][0])[j * 2 + 1]);
+					for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
+sum0 = _mm_add_epi16(sum0, reinterpret_cast<const __m128i*>(
               accumulation[perspectives[p]][i])[j * 2 + 0]);
           sum1 = _mm_add_epi16(sum1, reinterpret_cast<const __m128i*>(
               accumulation[perspectives[p]][i])[j * 2 + 1]);
@@ -151,19 +151,19 @@ class FeatureTransformer {
       }
 #elif defined(IS_ARM)
       const auto out = reinterpret_cast<int8x8_t*>(&output[offset]);
-      for (IndexType j = 0; j < kNumChunks; ++j) {
+      for (IndexType j = 0; j <kNumChunks; ++j) {
         int16x8_t sum = reinterpret_cast<const int16x8_t*>(
             accumulation[perspectives[p]][0])[j];
-        for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
+        for (IndexType i = 1; i <kRefreshTriggers.size(); ++i) {
           sum = vaddq_s16(sum, reinterpret_cast<const int16x8_t*>(
               accumulation[perspectives[p]][i])[j]);
         }
         out[j] = vmax_s8(vqmovn_s16(sum), kZero);
       }
 #else
-      for (IndexType j = 0; j < kHalfDimensions; ++j) {
+      for (IndexType j = 0; j <kHalfDimensions; ++j) {
         BiasType sum = accumulation[static_cast<int>(perspectives[p])][0][j];
-        for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
+        for (IndexType i = 1; i <kRefreshTriggers.size(); ++i) {
           sum += accumulation[static_cast<int>(perspectives[p])][i][j];
         }
         output[offset + j] = static_cast<OutputType>(
@@ -174,14 +174,14 @@ class FeatureTransformer {
   }
 
  private:
-  // 差分計算を用いずに累積値を計算する
+  // Calculate cumulative value without using difference calculation
   void RefreshAccumulator(const Position& pos) const {
     auto& accumulator = pos.state()->accumulator;
-    for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
+    for (IndexType i = 0; i <kRefreshTriggers.size(); ++i) {
       Features::IndexList active_indices[2];
       RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[i],
                                        active_indices);
-      for (const auto perspective : Colors) {
+      for (const auto perspective :Colors) {
         if (i == 0) {
           std::memcpy(accumulator.accumulation[perspective][i], biases_,
                       kHalfDimensions * sizeof(BiasType));
@@ -189,14 +189,14 @@ class FeatureTransformer {
           std::memset(accumulator.accumulation[perspective][i], 0,
                       kHalfDimensions * sizeof(BiasType));
         }
-        for (const auto index : active_indices[perspective]) {
+        for (const auto index: active_indices[perspective]) {
           const IndexType offset = kHalfDimensions * index;
 #if defined(USE_AVX2)
           auto accumulation = reinterpret_cast<__m256i*>(
               &accumulator.accumulation[perspective][i][0]);
           auto column = reinterpret_cast<const __m256i*>(&weights_[offset]);
           constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
-          for (IndexType j = 0; j < kNumChunks; ++j) {
+          for (IndexType j = 0; j <kNumChunks; ++j) {
 #if defined(__MINGW32__) || defined(__MINGW64__)
             _mm256_storeu_si256(&accumulation[j], _mm256_add_epi16(_mm256_loadu_si256(&accumulation[j]), column[j]));
 #else
@@ -208,7 +208,7 @@ class FeatureTransformer {
               &accumulator.accumulation[perspective][i][0]);
           auto column = reinterpret_cast<const __m128i*>(&weights_[offset]);
           constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
-          for (IndexType j = 0; j < kNumChunks; ++j) {
+          for (IndexType j = 0; j <kNumChunks; ++j) {
             accumulation[j] = _mm_add_epi16(accumulation[j], column[j]);
           }
 #elif defined(IS_ARM)
@@ -216,11 +216,11 @@ class FeatureTransformer {
               &accumulator.accumulation[perspective][i][0]);
           auto column = reinterpret_cast<const int16x8_t*>(&weights_[offset]);
           constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
-          for (IndexType j = 0; j < kNumChunks; ++j) {
+          for (IndexType j = 0; j <kNumChunks; ++j) {
             accumulation[j] = vaddq_s16(accumulation[j], column[j]);
           }
 #else
-          for (IndexType j = 0; j < kHalfDimensions; ++j) {
+          for (IndexType j = 0; j <kHalfDimensions; ++j) {
             accumulator.accumulation[perspective][i][j] += weights_[offset + j];
           }
 #endif
@@ -232,16 +232,16 @@ class FeatureTransformer {
     accumulator.computed_score = false;
   }
 
-  // 差分計算を用いて累積値を計算する
+  // Calculate cumulative value using difference calculation
   void UpdateAccumulator(const Position& pos) const {
     const auto prev_accumulator = pos.state()->previous->accumulator;
     auto& accumulator = pos.state()->accumulator;
-    for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
+    for (IndexType i = 0; i <kRefreshTriggers.size(); ++i) {
       Features::IndexList removed_indices[2], added_indices[2];
       bool reset[2];
       RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i],
                                         removed_indices, added_indices, reset);
-      for (const auto perspective : Colors) {
+      for (const auto perspective :Colors) {
 #if defined(USE_AVX2)
         constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
         auto accumulation = reinterpret_cast<__m256i*>(
@@ -252,7 +252,7 @@ class FeatureTransformer {
             &accumulator.accumulation[perspective][i][0]);
 #elif defined(IS_ARM)
         constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
-        auto accumulation = reinterpret_cast<int16x8_t*>(
+auto accumulation = reinterpret_cast<int16x8_t*>(
             &accumulator.accumulation[perspective][i][0]);
 #endif
         if (reset[perspective]) {
@@ -263,55 +263,55 @@ class FeatureTransformer {
             std::memset(accumulator.accumulation[perspective][i], 0,
                         kHalfDimensions * sizeof(BiasType));
           }
-        } else {  // 1から0に変化した特徴量に関する差分計算
+        } else {// Difference calculation for features that changed from 1 to 0
           std::memcpy(accumulator.accumulation[perspective][i],
                       prev_accumulator.accumulation[perspective][i],
                       kHalfDimensions * sizeof(BiasType));
-          for (const auto index : removed_indices[perspective]) {
+          for (const auto index: removed_indices[perspective]) {
             const IndexType offset = kHalfDimensions * index;
 #if defined(USE_AVX2)
             auto column = reinterpret_cast<const __m256i*>(&weights_[offset]);
-            for (IndexType j = 0; j < kNumChunks; ++j) {
+            for (IndexType j = 0; j <kNumChunks; ++j) {
               accumulation[j] = _mm256_sub_epi16(accumulation[j], column[j]);
             }
 #elif defined(USE_SSE2)
             auto column = reinterpret_cast<const __m128i*>(&weights_[offset]);
-            for (IndexType j = 0; j < kNumChunks; ++j) {
+            for (IndexType j = 0; j <kNumChunks; ++j) {
               accumulation[j] = _mm_sub_epi16(accumulation[j], column[j]);
             }
 #elif defined(IS_ARM)
             auto column = reinterpret_cast<const int16x8_t*>(&weights_[offset]);
-            for (IndexType j = 0; j < kNumChunks; ++j) {
+            for (IndexType j = 0; j <kNumChunks; ++j) {
               accumulation[j] = vsubq_s16(accumulation[j], column[j]);
             }
 #else
-            for (IndexType j = 0; j < kHalfDimensions; ++j) {
+            for (IndexType j = 0; j <kHalfDimensions; ++j) {
               accumulator.accumulation[perspective][i][j] -=
                   weights_[offset + j];
             }
 #endif
           }
         }
-        {  // 0から1に変化した特徴量に関する差分計算
-          for (const auto index : added_indices[perspective]) {
+        {// Difference calculation for features that changed from 0 to 1
+          for (const auto index: added_indices[perspective]) {
             const IndexType offset = kHalfDimensions * index;
 #if defined(USE_AVX2)
             auto column = reinterpret_cast<const __m256i*>(&weights_[offset]);
-            for (IndexType j = 0; j < kNumChunks; ++j) {
+            for (IndexType j = 0; j <kNumChunks; ++j) {
               accumulation[j] = _mm256_add_epi16(accumulation[j], column[j]);
             }
 #elif defined(USE_SSE2)
             auto column = reinterpret_cast<const __m128i*>(&weights_[offset]);
-            for (IndexType j = 0; j < kNumChunks; ++j) {
+            for (IndexType j = 0; j <kNumChunks; ++j) {
               accumulation[j] = _mm_add_epi16(accumulation[j], column[j]);
             }
 #elif defined(IS_ARM)
             auto column = reinterpret_cast<const int16x8_t*>(&weights_[offset]);
-            for (IndexType j = 0; j < kNumChunks; ++j) {
+            for (IndexType j = 0; j <kNumChunks; ++j) {
               accumulation[j] = vaddq_s16(accumulation[j], column[j]);
             }
 #else
-            for (IndexType j = 0; j < kHalfDimensions; ++j) {
+            for (IndexType j = 0; j <kHalfDimensions; ++j) {
               accumulator.accumulation[perspective][i][j] +=
                   weights_[offset + j];
             }
@@ -325,23 +325,23 @@ class FeatureTransformer {
     accumulator.computed_score = false;
   }
 
-  // パラメータの型
+  // parameter type
   using BiasType = std::int16_t;
   using WeightType = std::int16_t;
 
-  // 学習用クラスをfriendにする
+  // Make the learning class a friend
   friend class Trainer<FeatureTransformer>;
 
-  // パラメータ
+  // parameter
   alignas(kCacheLineSize) BiasType biases_[kHalfDimensions];
   alignas(kCacheLineSize)
       WeightType weights_[kHalfDimensions * kInputDimensions];
 };
 
-}  // namespace NNUE
+} // namespace NNUE
 
-}  // namespace Eval
+} // namespace Eval
 
-#endif  // defined(EVAL_NNUE)
+#endif // defined(EVAL_NNUE)
 
 #endif

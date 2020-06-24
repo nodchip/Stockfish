@@ -28,28 +28,28 @@
 class Position;
 
 enum GenType {
-  CAPTURES,
-  QUIETS,
-  QUIET_CHECKS,
-  EVASIONS,
-  NON_EVASIONS,
-  LEGAL
+	CAPTURES,
+	QUIETS,
+	QUIET_CHECKS,
+	EVASIONS,
+	NON_EVASIONS,
+	LEGAL
 };
 
 struct ExtMove {
-  Move move;
-  int value;
+	Move move;
+	int value;
 
-  operator Move() const { return move; }
-  void operator=(Move m) { move = m; }
+	operator Move() const { return move; }
+	void operator=(Move m) { move = m; }
 
-  // Inhibit unwanted implicit conversions to Move
-  // with an ambiguity that yields to a compile error.
-  operator float() const = delete;
+	// Inhibit unwanted implicit conversions to Move
+	// with an ambiguity that yields to a compile error.
+	operator float() const = delete;
 };
 
 inline bool operator<(const ExtMove& f, const ExtMove& s) {
-  return f.value < s.value;
+	return f.value < s.value;
 }
 
 template<GenType>
@@ -60,19 +60,19 @@ ExtMove* generate(const Position& pos, ExtMove* moveList);
 template<GenType T>
 struct MoveList {
 
-  explicit MoveList(const Position& pos) : last(generate<T>(pos, moveList)) {}
-  const ExtMove* begin() const { return moveList; }
-  const ExtMove* end() const { return last; }
-  size_t size() const { return last - moveList; }
-  bool contains(Move move) const {
-    return std::find(begin(), end(), move) != end();
-  }
+	explicit MoveList(const Position& pos) : last(generate<T>(pos, moveList)) {}
+	const ExtMove* begin() const { return moveList; }
+	const ExtMove* end() const { return last; }
+	size_t size() const { return last - moveList; }
+	bool contains(Move move) const {
+		return std::find(begin(), end(), move) != end();
+	}
 
-  // i”Ô–Ú‚Ì—v‘f‚ð•Ô‚·
-  const ExtMove at(size_t i) const { assert(0 <= i && i < size()); return begin()[i]; }
+	// i”Ô–Ú‚Ì—v‘f‚ð•Ô‚·
+	const ExtMove at(size_t i) const { assert(0 <= i && i < size()); return begin()[i]; }
 
 private:
-  ExtMove moveList[MAX_MOVES], *last;
+	ExtMove moveList[MAX_MOVES], * last;
 };
 
 #endif // #ifndef MOVEGEN_H_INCLUDED

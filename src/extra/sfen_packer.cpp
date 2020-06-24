@@ -5,123 +5,123 @@
 
 #include <sstream>
 #include <fstream>
-#include <cstring>	// std::memset()
+#include <cstring> // std::memset()
 
 using namespace std;
 
 // -----------------------------------
-//        局面の圧縮・解凍
+// compression/decompression of phase
 // -----------------------------------
 
-// ビットストリームを扱うクラス
-// 局面の符号化を行なうときに、これがあると便利
+// Class that handles bitstream
+// useful when doing aspect encoding
 struct BitStream
 {
-  // データを格納するメモリを事前にセットする。
-  // そのメモリは0クリアされているものとする。
-  void  set_data(uint8_t* data_) { data = data_; reset(); }
+	// Set the memory to store the data in advance.
+	// Assume that memory is cleared to 0.
+	void set_data(uint8_t* data_) { data = data_; reset(); }
 
-  // set_data()で渡されたポインタの取得。
-  uint8_t* get_data() const { return data; }
+	// Get the pointer passed in set_data().
+	uint8_t* get_data() const { return data; }
 
-  // カーソルの取得。
-  int get_cursor() const { return bit_cursor; }
+	// Get the cursor.
+	int get_cursor() const { return bit_cursor; }
 
-  // カーソルのリセット
-  void reset() { bit_cursor = 0; }
+	// reset the cursor
+	void reset() { bit_cursor = 0; }
 
-  // ストリームに1bit書き出す。
-  // bは非0なら1を書き出す。0なら0を書き出す。
-  void write_one_bit(int b)
-  {
-    if (b)
-      data[bit_cursor / 8] |= 1 << (bit_cursor & 7);
+	// Write 1bit to the stream.
+	// If b is non-zero, write out 1. If 0, write 0.
+	void write_one_bit(int b)
+	{
+		if (b)
+			data[bit_cursor / 8] |= 1 << (bit_cursor & 7);
 
-    ++bit_cursor;
-  }
+		++bit_cursor;
+	}
 
-  // ストリームから1ビット取り出す。
-  int read_one_bit()
-  {
-    int b = (data[bit_cursor / 8] >> (bit_cursor & 7)) & 1;
-    ++bit_cursor;
+	// Get 1 bit from the stream.
+	int read_one_bit()
+	{
+		int b = (data[bit_cursor / 8] >> (bit_cursor & 7)) & 1;
+		++bit_cursor;
 
-    return b;
-  }
+		return b;
+	}
 
-  // nビットのデータを書き出す
-  // データはdの下位から順に書き出されるものとする。
-  void write_n_bit(int d, int n)
-  {
-    for (int i = 0; i < n; ++i)
-      write_one_bit(d & (1 << i));
-  }
+	// write n bits of data
+	// The data shall be written out from the lower order of d.
+	void write_n_bit(int d, int n)
+	{
+		for (int i = 0; i < n; ++i)
+			write_one_bit(d & (1 << i));
+	}
 
-  // nビットのデータを読み込む
-  // write_n_bit()の逆変換。
-  int read_n_bit(int n)
-  {
-    int result = 0;
-    for (int i = 0; i < n; ++i)
-      result |= read_one_bit() ? (1 << i) : 0;
+	// read n bits of data
+	// Reverse conversion of write_n_bit().
+	int read_n_bit(int n)
+	{
+		int result = 0;
+		for (int i = 0; i < n; ++i)
+			result |= read_one_bit() ? (1 << i) : 0;
 
-    return result;
-  }
+		return result;
+	}
 
 private:
-  // 次に読み書きすべきbit位置。
-  int bit_cursor;
+	// Next bit position to read/write.
+	int bit_cursor;
 
-  // データの実体
-  uint8_t* data;
+	// data entity
+	uint8_t* data;
 };
 
 
-//  ハフマン符号化
-//   ※　 なのはminiの符号化から、変換が楽になるように単純化。
+// Huffman coding
+// ※ is simplified from the encoding of mini to make conversion easier.
 //
-//   盤上の1升(NO_PIECE以外) = 2～6bit ( + 成りフラグ1bit+ 先後1bit )
-//   手駒の1枚               = 1～5bit ( + 成りフラグ1bit+ 先後1bit )
+// 1 box on the board (other than NO_PIECE) = 2 to 6 bits (+ 1-bit flag + 1-bit forward and backward)
+// 1 piece of hand piece = 1-5bit (+ 1-bit flag + 1bit forward and backward)
 //
-//    空     xxxxx0 + 0    (none)
-//    歩     xxxx01 + 2    xxxx0 + 2
-//    香     xx0011 + 2    xx001 + 2
-//    桂     xx1011 + 2    xx101 + 2
-//    銀     xx0111 + 2    xx011 + 2
-//    金     x01111 + 1    x0111 + 1 // 金は成りフラグはない。
-//    角     011111 + 2    01111 + 2
-//    飛     111111 + 2    11111 + 2
+// empty xxxxx0 + 0 (none)
+// step xxxx01 + 2 xxxx0 + 2
+// incense xx0011 + 2 xx001 + 2
+// Katsura xx1011 + 2 xx101 + 2
+// silver xx0111 + 2 xx011 + 2
+// Gold x01111 + 1 x0111 + 1 // Gold is valid and has no flags.
+// corner 011111 + 2 01111 + 2
+// Fly 111111 + 2 11111 + 2
 //
-// すべての駒が盤上にあるとして、
-//     空 81 - 40駒 = 41升 = 41bit
-//     歩      4bit*18駒   = 72bit
-//     香      6bit* 4駒   = 24bit
-//     桂      6bit* 4駒   = 24bit
-//     銀      6bit* 4駒   = 24bit            
-//     金      6bit* 4駒   = 24bit
-//     角      8bit* 2駒   = 16bit
-//     飛      8bit* 2駒   = 16bit
-//                          -------
-//                          241bit + 1bit(手番) + 7bit×2(王の位置先後) = 256bit
+// Assuming all pieces are on the board,
+// Sky 81-40 pieces = 41 boxes = 41bit
+// Walk 4bit*18 pieces = 72bit
+// Incense 6bit*4 pieces = 24bit
+// Katsura 6bit*4 pieces = 24bit
+// Silver 6bit*4 pieces = 24bit
+// Gold 6bit*4 pieces = 24bit
+// corner 8bit* 2 pieces = 16bit
+// Fly 8bit* 2 pieces = 16bit
+// -------
+// 241bit + 1bit (turn) + 7bit x 2 (after king position) = 256bit
 //
-// 盤上の駒が手駒に移動すると盤上の駒が空になるので盤上のその升は1bitで表現でき、
-// 手駒は、盤上の駒より1bit少なく表現できるので結局、全体のbit数に変化はない。
-// ゆえに、この表現において、どんな局面でもこのbit数で表現できる。
-// 手駒に成りフラグは不要だが、これも含めておくと盤上の駒のbit数-1になるので
-// 全体のbit数が固定化できるのでこれも含めておくことにする。
+// When the piece on the board moves to the hand piece, the piece on the board becomes empty, so the box on the board can be expressed with 1 bit,
+// Since the hand piece can be expressed by 1 bit less than the piece on the board, the total number of bits does not change in the end.
+// Therefore, in this expression, any aspect can be expressed by this bit number.
+// It is a hand piece and no flag is required, but if you also include this, the bit number of the piece on the board will be -1
+// Since the total number of bits can be fixed, we will include this as well.
 
 // Huffman Encoding
 //
-// Empty  xxxxxxx0
-// Pawn   xxxxx001 + 1 bit (Side to move)
+// Empty xxxxxxx0
+// Pawn xxxxx001 + 1 bit (Side to move)
 // Knight xxxxx011 + 1 bit (Side to move)
 // Bishop xxxxx101 + 1 bit (Side to move)
-// Rook   xxxxx111 + 1 bit (Side to move)
+// Rook xxxxx111 + 1 bit (Side to move)
 
 struct HuffmanedPiece
 {
-  int code; // どうコード化されるか
-  int bits; // 何bit専有するのか
+	int code; // how it will be coded
+	int bits; // How many bits do you have
 };
 
 HuffmanedPiece huffman_table[] =
@@ -134,11 +134,11 @@ HuffmanedPiece huffman_table[] =
   {0b1001,4}, // QUEEN
 };
 
-// sfenを圧縮/解凍するためのクラス
-// sfenはハフマン符号化をすることで256bit(32bytes)にpackできる。
-// このことはなのはminiにより証明された。上のハフマン符号化である。
+// Class for compressing/decompressing sfen
+// sfen can be packed in 256bit (32bytes) by Huffman coding.
+// This was proven by mini. The above is Huffman coding.
 //
-// 内部フォーマット = 手番1bit+王の位置7bit*2 + 盤上の駒(ハフマン符号化) + 手駒(ハフマン符号化)
+// Internal format = 1-bit turn + 7-bit king position *2 + piece on board (Huffman encoding) + hand piece (Huffman encoding)
 // Side to move (White = 0, Black = 1) (1bit)
 // White King Position (6 bits)
 // Black King Position (6 bits)
@@ -152,117 +152,117 @@ HuffmanedPiece huffman_table[] =
 //
 struct SfenPacker
 {
-  // sfenをpackしてdata[32]に格納する。
-  void pack(const Position& pos)
-  {
-//    cout << pos;
+	// Pack sfen and store in data[32].
+	void pack(const Position& pos)
+	{
+		// cout << pos;
 
-    memset(data, 0, 32 /* 256bit */);
-    stream.set_data(data);
+		memset(data, 0, 32 /* 256bit */);
+		stream.set_data(data);
 
-    // 手番
-    // Side to move.
-    stream.write_one_bit((int)(pos.side_to_move()));
+		// turn
+		// Side to move.
+		stream.write_one_bit((int)(pos.side_to_move()));
 
-    // 先手玉、後手玉の位置、それぞれ7bit
-    // White king and black king, 6 bits for each.
-    for(auto c : Colors)
-      stream.write_n_bit(pos.king_square(c), 6);
+		// 7-bit positions for leading and trailing balls
+		// White king and black king, 6 bits for each.
+		for (auto c : Colors)
+			stream.write_n_bit(pos.king_square(c), 6);
 
-    // Write the pieces on the board other than the kings.
-    for (Rank r = RANK_8; r >= RANK_1; --r)
-    {
-      for (File f = FILE_A; f <= FILE_H; ++f)
-      {
-        Piece pc = pos.piece_on(make_square(f, r));
-        if (type_of(pc) == KING)
-          continue;
-        write_board_piece_to_stream(pc);
-      }
-    }
+		// Write the pieces on the board other than the kings.
+		for (Rank r = RANK_8; r >= RANK_1; --r)
+		{
+			for (File f = FILE_A; f <= FILE_H; ++f)
+			{
+				Piece pc = pos.piece_on(make_square(f, r));
+				if (type_of(pc) == KING)
+					continue;
+				write_board_piece_to_stream(pc);
+			}
+		}
 
-    // TODO(someone): Support chess960.
-    stream.write_one_bit(pos.can_castle(WHITE_OO));
-    stream.write_one_bit(pos.can_castle(WHITE_OOO));
-    stream.write_one_bit(pos.can_castle(BLACK_OO));
-    stream.write_one_bit(pos.can_castle(BLACK_OOO));
+		// TODO(someone): Support chess960.
+		stream.write_one_bit(pos.can_castle(WHITE_OO));
+		stream.write_one_bit(pos.can_castle(WHITE_OOO));
+		stream.write_one_bit(pos.can_castle(BLACK_OO));
+		stream.write_one_bit(pos.can_castle(BLACK_OOO));
 
-    if (pos.ep_square() == SQ_NONE) {
-      stream.write_one_bit(0);
-    }
-    else {
-      stream.write_one_bit(1);
-      stream.write_n_bit(static_cast<int>(pos.ep_square()), 6);
-    }
+		if (pos.ep_square() == SQ_NONE) {
+			stream.write_one_bit(0);
+		}
+		else {
+			stream.write_one_bit(1);
+			stream.write_n_bit(static_cast<int>(pos.ep_square()), 6);
+		}
 
-    stream.write_n_bit(pos.state()->rule50, 6);
+		stream.write_n_bit(pos.state()->rule50, 6);
 
-    stream.write_n_bit(1 + (pos.game_ply() - (pos.side_to_move() == BLACK)) / 2, 8);
+		stream.write_n_bit(1 + (pos.game_ply() - (pos.side_to_move() == BLACK)) / 2, 8);
 
-    assert(stream.get_cursor() <= 256);
-  }
+		assert(stream.get_cursor() <= 256);
+	}
 
-  // pack()でpackされたsfen(256bit = 32bytes)
-  // もしくはunpack()でdecodeするsfen
-  uint8_t *data; // uint8_t[32];
+	// sfen packed with pack() (256bit = 32bytes)
+	// Or sfen which decodes with unpack()
+	uint8_t* data; // uint8_t[32];
 
-//private:
-  // Position::set_from_packed_sfen(uint8_t data[32])でこれらの関数を使いたいので筋は悪いがpublicにしておく。
+  //private:
+	// Position::set_from_packed_sfen(uint8_t data[32]) I want to use these functions, so it's bad, but I'll leave it public.
 
-  BitStream stream;
+	BitStream stream;
 
-  // 盤面の駒をstreamに出力する。
-  void write_board_piece_to_stream(Piece pc)
-  {
-    // 駒種
-    PieceType pr = type_of(pc);
-    auto c = huffman_table[pr];
-    stream.write_n_bit(c.code, c.bits);
- 
-    if (pc == NO_PIECE)
-      return;
+	// Output the pieces on the board to stream.
+	void write_board_piece_to_stream(Piece pc)
+	{
+		// piece type
+		PieceType pr = type_of(pc);
+		auto c = huffman_table[pr];
+		stream.write_n_bit(c.code, c.bits);
 
-    // 先後フラグ
-    stream.write_one_bit(color_of(pc));
-  }
+		if (pc == NO_PIECE)
+			return;
 
-  // 盤面の駒を1枚streamから読み込む
-  Piece read_board_piece_from_stream()
-  {
-    PieceType pr = NO_PIECE_TYPE;
-    int code = 0, bits = 0;
-    while (true)
-    {
-      code |= stream.read_one_bit() << bits;
-      ++bits;
+		// first and second flag
+		stream.write_one_bit(color_of(pc));
+	}
 
-      assert(bits <= 6);
+	// Read one board piece from stream
+	Piece read_board_piece_from_stream()
+	{
+		PieceType pr = NO_PIECE_TYPE;
+		int code = 0, bits = 0;
+		while (true)
+		{
+			code |= stream.read_one_bit() << bits;
+			++bits;
 
-      for (pr = NO_PIECE_TYPE; pr < KING; ++pr)
-        if (huffman_table[pr].code == code
-          && huffman_table[pr].bits == bits)
-          goto Found;
-    }
-  Found:;
-    if (pr == NO_PIECE_TYPE)
-      return NO_PIECE;
+			assert(bits <= 6);
 
-    // 先後フラグ
-    Color c = (Color)stream.read_one_bit();
-    
-    return make_piece(c, pr);
-  }
+			for (pr = NO_PIECE_TYPE; pr < KING; ++pr)
+				if (huffman_table[pr].code == code
+					&& huffman_table[pr].bits == bits)
+					goto Found;
+		}
+	Found:;
+		if (pr == NO_PIECE_TYPE)
+			return NO_PIECE;
+
+		// first and second flag
+		Color c = (Color)stream.read_one_bit();
+
+		return make_piece(c, pr);
+	}
 };
 
 
 // -----------------------------------
-//        Positionクラスに追加
+// Add to Position class
 // -----------------------------------
 
-// 高速化のために直接unpackする関数を追加。かなりしんどい。
-// packer::unpack()とPosition::set()とを合体させて書く。
-// 渡された局面に問題があって、エラーのときは非0を返す。
-int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th, bool mirror)
+// Add a function that directly unpacks for speed. It's pretty tough.
+// Write it by combining packer::unpack() and Position::set().
+// If there is a problem with the passed phase and there is an error, non-zero is returned.
+int Position::set_from_packed_sfen(const PackedSfen& sfen, StateInfo* si, Thread* th, bool mirror)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -270,23 +270,23 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 
 	std::memset(this, 0, sizeof(Position));
 	std::memset(si, 0, sizeof(StateInfo));
-  std::fill_n(&pieceList[0][0], sizeof(pieceList) / sizeof(Square), SQ_NONE);
-  st = si;
+	std::fill_n(&pieceList[0][0], sizeof(pieceList) / sizeof(Square), SQ_NONE);
+	st = si;
 
 	// Active color
 	sideToMove = (Color)stream.read_one_bit();
 
-	// evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
+	// clear evalList. It is cleared when you clear to zero with memset above...
 	evalList.clear();
 
-	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
-	// それぞれの駒をどこまで使ったかのカウンター
-  PieceNumber next_piece_number = PIECE_NUMBER_ZERO;
+	// In updating the PieceList, we have to set which piece is where,
+	// A counter of how much each piece was used
+	PieceNumber next_piece_number = PIECE_NUMBER_ZERO;
 
-  pieceList[W_KING][0] = SQUARE_NB;
-  pieceList[B_KING][0] = SQUARE_NB;
+	pieceList[W_KING][0] = SQUARE_NB;
+	pieceList[B_KING][0] = SQUARE_NB;
 
-	// まず玉の位置
+	// First the position of the ball
 	if (mirror)
 	{
 		for (auto c : Colors)
@@ -298,151 +298,150 @@ int Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thre
 			board[stream.read_n_bit(6)] = make_piece(c, KING);
 	}
 
-  // Piece placement
-  for (Rank r = RANK_8; r >= RANK_1; --r)
-  {
-    for (File f = FILE_A; f <= FILE_H; ++f)
-    {
-      auto sq = make_square(f, r);
-      if (mirror) {
-        sq = Mir(sq);
-      }
+	// Piece placement
+	for (Rank r = RANK_8; r >= RANK_1; --r)
+	{
+		for (File f = FILE_A; f <= FILE_H; ++f)
+		{
+			auto sq = make_square(f, r);
+			if (mirror) {
+				sq = Mir(sq);
+			}
 
-      // すでに玉がいるようだ
-      Piece pc;
-      if (type_of(board[sq]) != KING)
-      {
-        assert(board[sq] == NO_PIECE);
-        pc = packer.read_board_piece_from_stream();
-      }
-      else
-      {
-        pc = board[sq];
-        board[sq] = NO_PIECE; // いっかい取り除いておかないとput_piece()でASSERTに引っかかる。
-      }
+			// it seems there are already balls
+			Piece pc;
+			if (type_of(board[sq]) != KING)
+			{
+				assert(board[sq] == NO_PIECE);
+				pc = packer.read_board_piece_from_stream();
+			}
+			else
+			{
+				pc = board[sq];
+				board[sq] = NO_PIECE; // put_piece() will get caught in ASSERT unless it is removed.
+			}
 
-      // 駒がない場合もあるのでその場合はスキップする。
-      if (pc == NO_PIECE)
-        continue;
+			// There may be no pieces, so skip in that case.
+			if (pc == NO_PIECE)
+				continue;
 
-      put_piece(Piece(pc), sq);
+			put_piece(Piece(pc), sq);
 
-      // evalListの更新
-      PieceNumber piece_no =
-        (pc == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
-        (pc == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
-        next_piece_number++; // それ以外
+			// update evalList
+			PieceNumber piece_no =
+				(pc == B_KING) ? PIECE_NUMBER_BKING : //
+				(pc == W_KING) ? PIECE_NUMBER_WKING : // back ball
+				next_piece_number++; // otherwise
 
-      evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
+			evalList.put_piece(piece_no, sq, pc); // Place the pc piece in the sq box
 
-      //cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
+			//cout << sq <<'' << board[sq] <<'' << stream.get_cursor() << endl;
 
-      if (stream.get_cursor() > 256)
-        return 1;
-      //assert(stream.get_cursor() <= 256);
+			if (stream.get_cursor() > 256)
+				return 1;
+			//assert(stream.get_cursor() <= 256);
 
-    }
-  }
+		}
+	}
 
-  // Castling availability.
-  // TODO(someone): Support chess960.
-  st->castlingRights = 0;
-  if (stream.read_one_bit()) {
-    Square rsq;
-    for (rsq = relative_square(WHITE, SQ_H1); piece_on(rsq) != W_ROOK; --rsq) {}
-    set_castling_right(WHITE, rsq);
-  }
-  if (stream.read_one_bit()) {
-    Square rsq;
-    for (rsq = relative_square(WHITE, SQ_A1); piece_on(rsq) != W_ROOK; ++rsq) {}
-    set_castling_right(WHITE, rsq);
-  }
-  if (stream.read_one_bit()) {
-    Square rsq;
-    for (rsq = relative_square(BLACK, SQ_H1); piece_on(rsq) != B_ROOK; --rsq) {}
-    set_castling_right(BLACK, rsq);
-  }
-  if (stream.read_one_bit()) {
-    Square rsq;
-    for (rsq = relative_square(BLACK, SQ_A1); piece_on(rsq) != B_ROOK; ++rsq) {}
-    set_castling_right(BLACK, rsq);
-  }
+	// Castling availability.
+	// TODO(someone): Support chess960.
+	st->castlingRights = 0;
+	if (stream.read_one_bit()) {
+		Square rsq;
+		for (rsq = relative_square(WHITE, SQ_H1); piece_on(rsq) != W_ROOK; --rsq) {}
+		set_castling_right(WHITE, rsq);
+	}
+	if (stream.read_one_bit()) {
+		Square rsq;
+		for (rsq = relative_square(WHITE, SQ_A1); piece_on(rsq) != W_ROOK; ++rsq) {}
+		set_castling_right(WHITE, rsq);
+	}
+	if (stream.read_one_bit()) {
+		Square rsq;
+		for (rsq = relative_square(BLACK, SQ_H1); piece_on(rsq) != B_ROOK; --rsq) {}
+		set_castling_right(BLACK, rsq);
+	}
+	if (stream.read_one_bit()) {
+		Square rsq;
+		for (rsq = relative_square(BLACK, SQ_A1); piece_on(rsq) != B_ROOK; ++rsq) {}
+		set_castling_right(BLACK, rsq);
+	}
 
-  // En passant square. Ignore if no pawn capture is possible
-  if (stream.read_one_bit()) {
-    Square ep_square = static_cast<Square>(stream.read_n_bit(6));
-    if (mirror) {
-      ep_square = Mir(ep_square);
-    }
-    st->epSquare = ep_square;
+	// En passant square.Ignore if no pawn capture is possible
+	if (stream.read_one_bit()) {
+		Square ep_square = static_cast<Square>(stream.read_n_bit(6));
+		if (mirror) {
+			ep_square = Mir(ep_square);
+		}
+		st->epSquare = ep_square;
 
-    if (!(attackers_to(st->epSquare) & pieces(sideToMove, PAWN))
-      || !(pieces(~sideToMove, PAWN) & (st->epSquare + pawn_push(~sideToMove))))
-      st->epSquare = SQ_NONE;
-  }
-  else {
-    st->epSquare = SQ_NONE;
-  }
+		if (!(attackers_to(st->epSquare) & pieces(sideToMove, PAWN))
+			|| !(pieces(~sideToMove, PAWN) & (st->epSquare + pawn_push(~sideToMove))))
+			st->epSquare = SQ_NONE;
+	}
+	else {
+		st->epSquare = SQ_NONE;
+	}
 
-  // Halfmove clock
-  st->rule50 = static_cast<Square>(stream.read_n_bit(6));
+	// Halfmove clock
+	st->rule50 = static_cast<Square>(stream.read_n_bit(6));
 
-  // Fullmove number
-  gamePly = static_cast<Square>(stream.read_n_bit(8));
-  // Convert from fullmove starting from 1 to gamePly starting from 0,
-  // handle also common incorrect FEN with fullmove = 0.
-  gamePly = std::max(2 * (gamePly - 1), 0) + (sideToMove == BLACK);
+	// Fullmove number
+	gamePly = static_cast<Square>(stream.read_n_bit(8));
+	// Convert from fullmove starting from 1 to gamePly starting from 0,
+	// handle also common incorrect FEN with fullmove = 0.
+	gamePly = std::max(2 * (gamePly - 1), 0) + (sideToMove == BLACK);
 
-  assert(stream.get_cursor() <= 256);
+	assert(stream.get_cursor() <= 256);
 
-  chess960 = false;
-  thisThread = th;
+	chess960 = false;
+	thisThread = th;
 	set_state(st);
 
-  //std::cout << *this << std::endl;
+	//std::cout << *this << std::endl;
 
-  assert(pos_is_ok());
+	assert(pos_is_ok());
 #if defined(EVAL_NNUE)
-  assert(evalList.is_valid(*this));
-#endif  // defined(EVAL_NNUE)
+	assert(evalList.is_valid(*this));
+#endif // defined(EVAL_NNUE)
 
 	return 0;
 }
 
-// 盤面と手駒、手番を与えて、そのsfenを返す。
+// Give the board, hand piece, and turn, and return the sfen.
 //std::string Position::sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly_)
 //{
-//  // 内部的な構造体にコピーして、sfen()を呼べば、変換過程がそこにしか依存していないならば
-//  // これで正常に変換されるのでは…。
-//  Position pos;
+// // Copy it to an internal structure and call sfen(), if the conversion process depends only on it
+// // This will convert it properly...
+// Position pos;
 //
-//  memcpy(pos.board, board, sizeof(Piece) * 81);
-//  memcpy(pos.hand, hands, sizeof(Hand) * 2);
-//  pos.sideToMove = turn;
-//  pos.gamePly = gamePly_;
+// memcpy(pos.board, board, sizeof(Piece) * 81);
+// memcpy(pos.hand, hands, sizeof(Hand) * 2);
+// pos.sideToMove = turn;
+// pos.gamePly = gamePly_;
 //
-//  return pos.sfen();
+// return pos.sfen();
 //
-//  // ↑の実装、美しいが、いかんせん遅い。
-//  // 棋譜を大量に読み込ませて学習させるときにここがボトルネックになるので直接unpackする関数を書く。
+// // Implementation of ↑ is beautiful, but it is slow.
+// // This is a bottleneck when learning a large amount of game records, so write a function that directly unpacks.
 //}
 
-// packされたsfenを得る。引数に指定したバッファに返す。
+// Get the packed sfen. Returns to the buffer specified in the argument.
 void Position::sfen_pack(PackedSfen& sfen)
 {
-  SfenPacker sp;
-  sp.data = (uint8_t*)&sfen;
-  sp.pack(*this);
+	SfenPacker sp;
+	sp.data = (uint8_t*)&sfen;
+	sp.pack(*this);
 }
 
-//// packされたsfenを解凍する。sfen文字列が返る。
+//// Unpack the packed sfen. Returns an sfen string.
 //std::string Position::sfen_unpack(const PackedSfen& sfen)
 //{
-//  SfenPacker sp;
-//  sp.data = (uint8_t*)&sfen;
-//  return sp.unpack();
+// SfenPacker sp;
+// sp.data = (uint8_t*)&sfen;
+// return sp.unpack();
 //}
 
 
 #endif // USE_SFEN_PACKER
-

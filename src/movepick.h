@@ -36,22 +36,22 @@
 template<typename T, int D>
 class StatsEntry {
 
-  T entry;
+	T entry;
 
 public:
-  void operator=(const T& v) { entry = v; }
-  T* operator&() { return &entry; }
-  T* operator->() { return &entry; }
-  operator const T&() const { return entry; }
+	void operator=(const T& v) { entry = v; }
+	T* operator&() { return &entry; }
+	T* operator->() { return &entry; }
+	operator const T& () const { return entry; }
 
-  void operator<<(int bonus) {
-    assert(abs(bonus) <= D); // Ensure range is [-D, D]
-    static_assert(D <= std::numeric_limits<T>::max(), "D overflows T");
+	void operator<<(int bonus) {
+		assert(abs(bonus) <= D); // Ensure range is [-D, D]
+		static_assert(D <= std::numeric_limits<T>::max(), "D overflows T");
 
-    entry += bonus - entry * abs(bonus) / D;
+		entry += bonus - entry * abs(bonus) / D;
 
-    assert(abs(entry) <= D);
-  }
+		assert(abs(entry) <= D);
+	}
 };
 
 /// Stats is a generic N-dimensional array used to store various statistics.
@@ -62,17 +62,17 @@ public:
 template <typename T, int D, int Size, int... Sizes>
 struct Stats : public std::array<Stats<T, D, Sizes...>, Size>
 {
-  typedef Stats<T, D, Size, Sizes...> stats;
+	typedef Stats<T, D, Size, Sizes...> stats;
 
-  void fill(const T& v) {
+	void fill(const T& v) {
 
-    // For standard-layout 'this' points to first struct member
-    assert(std::is_standard_layout<stats>::value);
+		// For standard-layout 'this' points to first struct member
+		assert(std::is_standard_layout<stats>::value);
 
-    typedef StatsEntry<T, D> entry;
-    entry* p = reinterpret_cast<entry*>(this);
-    std::fill(p, p + sizeof(*this) / sizeof(entry), v);
-  }
+		typedef StatsEntry<T, D> entry;
+		entry* p = reinterpret_cast<entry*>(this);
+		std::fill(p, p + sizeof(*this) / sizeof(entry), v);
+	}
 };
 
 template <typename T, int D, int Size>
@@ -86,13 +86,13 @@ enum StatsType { NoCaptures, Captures };
 /// unsuccessful during the current search, and is used for reduction and move
 /// ordering decisions. It uses 2 tables (one for each color) indexed by
 /// the move's from and to squares, see www.chessprogramming.org/Butterfly_Boards
-typedef Stats<int16_t, 10692, COLOR_NB, int(SQUARE_NB) * int(SQUARE_NB)> ButterflyHistory;
+typedef Stats<int16_t, 10692, COLOR_NB, int(SQUARE_NB)* int(SQUARE_NB)> ButterflyHistory;
 
 /// LowPlyHistory at higher depths records successful quiet moves on plies 0 to 3
 /// and quiet moves which are/were in the PV (ttPv)
 /// It get cleared with each new search and get filled during iterative deepening
 constexpr int MAX_LPH = 4;
-typedef Stats<int16_t, 10692, MAX_LPH, int(SQUARE_NB) * int(SQUARE_NB)> LowPlyHistory;
+typedef Stats<int16_t, 10692, MAX_LPH, int(SQUARE_NB)* int(SQUARE_NB)> LowPlyHistory;
 
 /// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
 /// move, see www.chessprogramming.org/Countermove_Heuristic
@@ -118,44 +118,44 @@ typedef Stats<PieceToHistory, NOT_USED, PIECE_NB, SQUARE_NB> ContinuationHistory
 /// to get a cut-off first.
 class MovePicker {
 
-  enum PickType { Next, Best };
+	enum PickType { Next, Best };
 
 public:
-  MovePicker(const MovePicker&) = delete;
-  MovePicker& operator=(const MovePicker&) = delete;
-  MovePicker(const Position&, Move, Value, const CapturePieceToHistory*);
-  MovePicker(const Position&, Move, Depth, const ButterflyHistory*,
-                                           const CapturePieceToHistory*,
-                                           const PieceToHistory**,
-                                           Square);
-  MovePicker(const Position&, Move, Depth, const ButterflyHistory*,
-                                           const LowPlyHistory*,
-                                           const CapturePieceToHistory*,
-                                           const PieceToHistory**,
-                                           Move,
-                                           Move*,
-                                           int);
-  Move next_move(bool skipQuiets = false);
+	MovePicker(const MovePicker&) = delete;
+	MovePicker& operator=(const MovePicker&) = delete;
+	MovePicker(const Position&, Move, Value, const CapturePieceToHistory*);
+	MovePicker(const Position&, Move, Depth, const ButterflyHistory*,
+		const CapturePieceToHistory*,
+		const PieceToHistory**,
+		Square);
+	MovePicker(const Position&, Move, Depth, const ButterflyHistory*,
+		const LowPlyHistory*,
+		const CapturePieceToHistory*,
+		const PieceToHistory**,
+		Move,
+		Move*,
+		int);
+	Move next_move(bool skipQuiets = false);
 
 private:
-  template<PickType T, typename Pred> Move select(Pred);
-  template<GenType> void score();
-  ExtMove* begin() { return cur; }
-  ExtMove* end() { return endMoves; }
+	template<PickType T, typename Pred> Move select(Pred);
+	template<GenType> void score();
+	ExtMove* begin() { return cur; }
+	ExtMove* end() { return endMoves; }
 
-  const Position& pos;
-  const ButterflyHistory* mainHistory;
-  const LowPlyHistory* lowPlyHistory;
-  const CapturePieceToHistory* captureHistory;
-  const PieceToHistory** continuationHistory;
-  Move ttMove;
-  ExtMove refutations[3], *cur, *endMoves, *endBadCaptures;
-  int stage;
-  Square recaptureSquare;
-  Value threshold;
-  Depth depth;
-  int ply;
-  ExtMove moves[MAX_MOVES];
+	const Position& pos;
+	const ButterflyHistory* mainHistory;
+	const LowPlyHistory* lowPlyHistory;
+	const CapturePieceToHistory* captureHistory;
+	const PieceToHistory** continuationHistory;
+	Move ttMove;
+	ExtMove refutations[3], * cur, * endMoves, * endBadCaptures;
+	int stage;
+	Square recaptureSquare;
+	Value threshold;
+	Depth depth;
+	int ply;
+	ExtMove moves[MAX_MOVES];
 };
 
 #endif // #ifndef MOVEPICK_H_INCLUDED

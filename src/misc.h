@@ -11,11 +11,11 @@
 
   Stockfish is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  along with this program.If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef MISC_H_INCLUDED
@@ -50,20 +50,20 @@ typedef std::chrono::milliseconds::rep TimePoint; // A value in milliseconds
 static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
 
 inline TimePoint now() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>
-        (std::chrono::steady_clock::now().time_since_epoch()).count();
+return std::chrono::duration_cast<std::chrono::milliseconds>
+(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 template<class Entry, int Size>
 struct HashTable {
-  Entry* operator[](Key key) { return &table[(uint32_t)key & (Size - 1)]; }
+Entry* operator[](Key key) {return &table[(uint32_t)key & (Size-1)];}
 
 private:
-  std::vector<Entry> table = std::vector<Entry>(Size); // Allocate on the heap
+std::vector<Entry> table = std::vector<Entry>(Size); // Allocate on the heap
 };
 
 
-enum SyncCout { IO_LOCK, IO_UNLOCK };
+enum SyncCout {IO_LOCK, IO_UNLOCK };
 std::ostream& operator<<(std::ostream&, SyncCout);
 
 #define sync_cout std::cout << IO_LOCK
@@ -73,7 +73,7 @@ namespace Utility {
 
 /// Clamp a value between lo and hi. Available in c++17.
 template<class T> constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
-  return v < lo ? lo : v > hi ? hi : v;
+return v <lo ?lo :v> hi ?hi :v;
 }
 
 }
@@ -83,209 +83,209 @@ template<class T> constexpr const T& clamp(const T& v, const T& lo, const T& hi)
 /// to the public domain by Sebastiano Vigna (2014).
 /// It has the following characteristics:
 ///
-///  -  Outputs 64-bit numbers
-///  -  Passes Dieharder and SmallCrush test batteries
-///  -  Does not require warm-up, no zeroland to escape
-///  -  Internal state is a single 64-bit integer
-///  -  Period is 2^64 - 1
-///  -  Speed: 1.60 ns/call (Core i7 @3.40GHz)
+///-Outputs 64-bit numbers
+///-Passes Dieharder and SmallCrush test batteries
+///-Does not require warm-up, no zeroland to escape
+///-Internal state is a single 64-bit integer
+///-Period is 2^64-1
+///-Speed: 1.60 ns/call (Core i7 @3.40GHz)
 ///
 /// For further analysis see
-///   <http://vigna.di.unimi.it/ftp/papers/xorshift.pdf>
+/// <http://vigna.di.unimi.it/ftp/papers/xorshift.pdf>
 
 class PRNG {
 
-  uint64_t s;
+uint64_t s;
 
-  uint64_t rand64() {
+uint64_t rand64() {
 
-    s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
-    return s * 2685821657736338717LL;
-  }
+s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
+return s * 2685821657736338717LL;
+}
 
 public:
-  PRNG(uint64_t seed) : s(seed) { assert(seed); }
+PRNG(uint64_t seed): s(seed) {assert(seed);}
 
-  template<typename T> T rand() { return T(rand64()); }
+template<typename T> T rand() {return T(rand64());}
 
-  /// Special generator used to fast init magic numbers.
-  /// Output values only have 1/8th of their bits set on average.
+/// Special generator used to fast init magic numbers.
+/// Output values ​​only have 1/8th of their bits set on average.
   template<typename T> T sparse_rand()
-  { return T(rand64() & rand64() & rand64()); }
+  {return T(rand64() & rand64() & rand64());}
 
-  // 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
-  uint64_t rand(uint64_t n) { return rand<uint64_t>() % n; }
+  // Returns a random number from 0 to n-1. (Not uniform distribution, but this is enough in reality)
+uint64_t rand(uint64_t n) {return rand<uint64_t>() %n;}
 
-  // 内部で使用している乱数seedを返す。
-  uint64_t get_seed() const { return s; }
+// Return the random seed used internally.
+uint64_t get_seed() const {return s;}
 };
 
-// 乱数のseedを表示する。(デバッグ用)
+// Display a random seed. (For debugging)
 inline std::ostream& operator<<(std::ostream& os, PRNG& prng)
 {
-  os << "PRNG::seed = " << std::hex << prng.get_seed() << std::dec;
-  return os;
+os << "PRNG::seed = "<< std::hex << prng.get_seed() << std::dec;
+return os;
 }
 
 /// Under Windows it is not possible for a process to run on more than one
-/// logical processor group. This usually means to be limited to use max 64
+/// logical processor group.This usually means to be limited to use max 64
 /// cores. To overcome this, some special platform specific API should be
 /// called to set group affinity for each thread. Original code from Texel by
 /// Peter Österlund.
 
 namespace WinProcGroup {
-  void bindThisThread(size_t idx);
+void bindThisThread(size_t idx);
 }
 
-// 指定されたミリ秒だけsleepする。
+// sleep for the specified number of milliseconds.
 extern void sleep(int ms);
 
-// 現在時刻を文字列化したもを返す。(評価関数の学習時などにログ出力のために用いる)
+// Returns a string that represents the current time. (Used for log output when learning evaluation function)
 std::string now_string();
 
-// 途中での終了処理のためのwrapper
+// wrapper for end processing on the way
 static void my_exit()
 {
-	sleep(3000); // エラーメッセージが出力される前に終了するのはまずいのでwaitを入れておく。
-	exit(EXIT_FAILURE);
+sleep(3000); // It is bad to finish before the error message is output, so put wait.
+exit(EXIT_FAILURE);
 }
 
-// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
-// C++のstd::ifstreamで::read()は、一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapperである。
+// When compiled with gcc/clang such as msys2, Windows Subsystem for Linux,
+// In C++ std::ifstream, ::read() is a wrapper for that because it is not possible to read and write files larger than 2GB in one shot.
 //
-// read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
-// callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
-// これらの関数は、ファイルが見つからないときなどエラーの際には非0を返す。
+// callback_func of the argument of read_file_to_memory() uses the file size as an argument when the file can be opened
+// It is called as a callback, so if you allocate a buffer and pass a function that returns its head pointer, it will be read there.
+// These functions return non-zero on error, such as when the file cannot be found.
 //
-// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
-// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
+// In addition, if the buffer cannot be allocated in the callback function or if the file size is different from the expected file size,
+// Return nullptr. At this time, read_file_to_memory() interrupts reading and returns with an error.
 
 int read_file_to_memory(std::string filename, std::function<void* (uint64_t)> callback_func);
 int write_memory_to_file(std::string filename, void* ptr, uint64_t size);
 
 // --------------------
-//    PRNGのasync版
+// async version of PRNG
 // --------------------
 
-// PRNGのasync版
+// async version of PRNG
 struct AsyncPRNG
 {
-  AsyncPRNG(uint64_t seed) : prng(seed) { assert(seed); }
-  // [ASYNC] 乱数を一つ取り出す。
-  template<typename T> T rand() {
-    std::unique_lock<std::mutex> lk(mutex);
-    return prng.rand<T>();
-  }
+AsyncPRNG(uint64_t seed): prng(seed) {assert(seed);}
+// [ASYNC] Extract one random number.
+template<typename T> T rand() {
+std::unique_lock<std::mutex> lk(mutex);
+return prng.rand<T>();
+}
 
-  // [ASYNC] 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
-  uint64_t rand(uint64_t n) {
-    std::unique_lock<std::mutex> lk(mutex);
-    return prng.rand(n);
-  }
+// [ASYNC] Returns a random number from 0 to n-1. (Not uniform distribution, but this is enough in reality)
+uint64_t rand(uint64_t n) {
+std::unique_lock<std::mutex> lk(mutex);
+return prng.rand(n);
+}
 
-  // 内部で使用している乱数seedを返す。
-  uint64_t get_seed() const { return prng.get_seed(); }
+// Return the random seed used internally.
+uint64_t get_seed() const {return prng.get_seed();}
 
 protected:
-  std::mutex mutex;
-  PRNG prng;
+std::mutex mutex;
+PRNG prng;
 };
 
-// 乱数のseedを表示する。(デバッグ用)
+// Display a random seed. (For debugging)
 inline std::ostream& operator<<(std::ostream& os, AsyncPRNG& prng)
 {
-  os << "AsyncPRNG::seed = " << std::hex << prng.get_seed() << std::dec;
-  return os;
+os << "AsyncPRNG::seed = "<< std::hex << prng.get_seed() << std::dec;
+return os;
 }
 
 // --------------------
-//       Math
+// Math
 // --------------------
 
-// 進行度の計算や学習で用いる数学的な関数
+// Mathematical function used for progress calculation and learning
 namespace Math {
-	// シグモイド関数
-	//  = 1.0 / (1.0 + std::exp(-x))
-	double sigmoid(double x);
+// Sigmoid function
+// = 1.0 / (1.0 + std::exp(-x))
+double sigmoid(double x);
 
-	// シグモイド関数の微分
-	//  = sigmoid(x) * (1.0 - sigmoid(x))
-	double dsigmoid(double x);
+// Differentiation of sigmoid function
+// = sigmoid(x) * (1.0-sigmoid(x))
+double dsigmoid(double x);
 
-	// vを[lo,hi]の間に収まるようにクリップする。
-	// ※　Stockfishではこの関数、bitboard.hに書いてある。
-	template<class T> constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
-		return v < lo ? lo : v > hi ? hi : v;
-	}
+// Clip v so that it fits between [lo,hi].
+// * In Stockfish, this function is written in bitboard.h.
+template<class T> constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
+return v <lo ?lo :v> hi ?hi :v;
+}
 
 }
 
 // --------------------
-//       Path
+// Path
 // --------------------
 
-// C#にあるPathクラス的なもの。ファイル名の操作。
-// C#のメソッド名に合わせておく。
+// Something like Path class in C#. File name manipulation.
+// Match with the C# method name.
 struct Path
 {
-	// path名とファイル名を結合して、それを返す。
-	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
-	static std::string Combine(const std::string& folder, const std::string& filename)
-	{
-		if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
-			return folder + "/" + filename;
+// Combine the path name and file name and return it.
+// If the folder name is not an empty string, add it if there is no'/' or'\\' at the end.
+static std::string Combine(const std::string& folder, const std::string& filename)
+{
+if (folder.length() >= 1 && *folder.rbegin() !='/' && *folder.rbegin() !='\\')
+return folder + "/" + filename;
 
-		return folder + filename;
-	}
+return folder + filename;
+}
 
-	// full path表現から、(フォルダ名を除いた)ファイル名の部分を取得する。
-	static std::string GetFileName(const std::string& path)
-	{
-		// "\"か"/"か、どちらを使ってあるかはわからない。
-		auto path_index1 = path.find_last_of("\\") + 1;
-		auto path_index2 = path.find_last_of("/") + 1;
-		auto path_index = std::max(path_index1, path_index2);
+// Get the file name part (excluding the folder name) from the full path expression.
+static std::string GetFileName(const std::string& path)
+{
+// I don't know which "\" or "/" is used.
+auto path_index1 = path.find_last_of("\\") + 1;
+auto path_index2 = path.find_last_of("/") + 1;
+auto path_index = std::max(path_index1, path_index2);
 
-		return path.substr(path_index);
-	}
+return path.substr(path_index);
+}
 };
 
 extern void* aligned_malloc(size_t size, size_t align);
-static void aligned_free(void* ptr) { _mm_free(ptr); }
+static void aligned_free(void* ptr) {_mm_free(ptr);}
 
-// alignasを指定しているのにnewのときに無視される＆STLのコンテナがメモリ確保するときに無視するので、
-// そのために用いるカスタムアロケーター。
+// It is ignored when new is specified even though alignas is specified & because it is ignored when the STL container allocates memory,
+// A custom allocator used for that.
 template <typename T>
 class AlignedAllocator {
 public:
-  using value_type = T;
+using value_type = T;
 
-  AlignedAllocator() {}
-  AlignedAllocator(const AlignedAllocator&) {}
-  AlignedAllocator(AlignedAllocator&&) {}
+AlignedAllocator() {}
+AlignedAllocator(const AlignedAllocator&) {}
+AlignedAllocator(AlignedAllocator&&) {}
 
-  template <typename U> AlignedAllocator(const AlignedAllocator<U>&) {}
+template <typename U> AlignedAllocator(const AlignedAllocator<U>&) {}
 
-  T* allocate(std::size_t n) { return (T*)aligned_malloc(n * sizeof(T), alignof(T)); }
-  void deallocate(T* p, std::size_t n) { aligned_free(p); }
+T* allocate(std::size_t n) {return (T*)aligned_malloc(n * sizeof(T), alignof(T));}
+void deallocate(T* p, std::size_t n) {aligned_free(p);}
 };
 
 // --------------------
-//  Dependency Wrapper
+// Dependency Wrapper
 // --------------------
 
 namespace Dependency
 {
-  // Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
-  // '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
-  // そのため、fstreamに対してgetline()を呼び出すときは、
-  // std::getline()ではなく単にgetline()と書いて、この関数を使うべき。
-  extern bool getline(std::ifstream& fs, std::string& s);
+// In the Linux environment, if you getline() the text file is'\r\n'
+//'\r' remains at the end, so write a wrapper to remove this'\r'.
+// So when calling getline() on fstream,
+// just write getline() instead of std::getline() and use this function.
+extern bool getline(std::ifstream& fs, std::string& s);
 
-  // フォルダを作成する。
-  // カレントフォルダ相対で指定する。dir_nameに日本語は使っていないものとする。
-  // 成功すれば0、失敗すれば非0が返る。
-  extern int mkdir(std::string dir_name);
+// Create a folder.
+// Specify relative to the current folder. Japanese is not used for dir_name.
+// Returns 0 on success, non-zero on failure.
+extern int mkdir(std::string dir_name);
 }
 
 #endif // #ifndef MISC_H_INCLUDED

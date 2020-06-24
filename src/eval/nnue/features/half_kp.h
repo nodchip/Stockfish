@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の入力特徴量HalfKPの定義
+﻿//Definition of input features HalfKP of NNUE evaluation function
 
 #ifndef _NNUE_FEATURES_HALF_KP_H_
 #define _NNUE_FEATURES_HALF_KP_H_
@@ -10,53 +10,53 @@
 
 namespace Eval {
 
-namespace NNUE {
+	namespace NNUE {
 
-namespace Features {
+		namespace Features {
 
-// 特徴量HalfKP：自玉または敵玉の位置と、玉以外の駒の位置の組み合わせ
+			// Feature HalfKP: Combination of the position of own ball or enemy ball and the position of pieces other than balls
 template <Side AssociatedKing>
-class HalfKP {
- public:
-  // 特徴量名
-  static constexpr const char* kName =
-      (AssociatedKing == Side::kFriend) ? "HalfKP(Friend)" : "HalfKP(Enemy)";
-  // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t kHashValue =
-      0x5D69D5B9u ^ (AssociatedKing == Side::kFriend);
-  // 特徴量の次元数
-  static constexpr IndexType kDimensions =
-      static_cast<IndexType>(SQUARE_NB) * static_cast<IndexType>(fe_end);
-  // 特徴量のうち、同時に値が1となるインデックスの数の最大値
-  static constexpr IndexType kMaxActiveDimensions = PIECE_NUMBER_KING;
-  // 差分計算の代わりに全計算を行うタイミング
-  static constexpr TriggerEvent kRefreshTrigger =
-      (AssociatedKing == Side::kFriend) ?
-      TriggerEvent::kFriendKingMoved : TriggerEvent::kEnemyKingMoved;
+			class HalfKP {
+			public:
+				// feature quantity name
+				static constexpr const char* kName =
+					(AssociatedKing == Side::kFriend) ? "HalfKP(Friend)" : "HalfKP(Enemy)";
+				// Hash value embedded in the evaluation function file
+				static constexpr std::uint32_t kHashValue =
+					0x5D69D5B9u ^ (AssociatedKing == Side::kFriend);
+				// number of feature dimensions
+				static constexpr IndexType kDimensions =
+					static_cast<IndexType>(SQUARE_NB) * static_cast<IndexType>(fe_end);
+				// The maximum value of the number of indexes whose values ​​are 1 at the same time among the feature values
+				static constexpr IndexType kMaxActiveDimensions = PIECE_NUMBER_KING;
+				// Timing of full calculation instead of difference calculation
+				static constexpr TriggerEvent kRefreshTrigger =
+					(AssociatedKing == Side::kFriend) ?
+					TriggerEvent::kFriendKingMoved : TriggerEvent::kEnemyKingMoved;
 
-  // 特徴量のうち、値が1であるインデックスのリストを取得する
-  static void AppendActiveIndices(const Position& pos, Color perspective,
-                                  IndexList* active);
+				// Get a list of indices with a value of 1 among the features
+				static void AppendActiveIndices(const Position& pos, Color perspective,
+					IndexList* active);
 
-  // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-  static void AppendChangedIndices(const Position& pos, Color perspective,
-                                   IndexList* removed, IndexList* added);
+				// Get a list of indexes whose values ​​have changed from the previous one among the feature quantities
+				static void AppendChangedIndices(const Position& pos, Color perspective,
+					IndexList* removed, IndexList* added);
 
-  // 玉の位置とBonaPieceから特徴量のインデックスを求める
-  static IndexType MakeIndex(Square sq_k, BonaPiece p);
+				// Find the index of the feature quantity from the ball position and BonaPiece
+				static IndexType MakeIndex(Square sq_k, BonaPiece p);
 
- private:
-  // 駒の情報を取得する
-  static void GetPieces(const Position& pos, Color perspective,
-                        BonaPiece** pieces, Square* sq_target_k);
-};
+			private:
+				// Get the piece information
+				static void GetPieces(const Position& pos, Color perspective,
+					BonaPiece** pieces, Square* sq_target_k);
+			};
 
-}  // namespace Features
+		} // namespace Features
 
-}  // namespace NNUE
+	} // namespace NNUE
 
-}  // namespace Eval
+} // namespace Eval
 
-#endif  // defined(EVAL_NNUE)
+#endif // defined(EVAL_NNUE)
 
 #endif

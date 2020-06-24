@@ -1,4 +1,4 @@
-﻿// NNUE評価関数の差分計算用のクラス
+﻿// Class for difference calculation of NNUE evaluation function
 
 #ifndef _NNUE_ACCUMULATOR_H_
 #define _NNUE_ACCUMULATOR_H_
@@ -9,22 +9,22 @@
 
 namespace Eval {
 
-namespace NNUE {
+	namespace NNUE {
 
-// 入力特徴量をアフィン変換した結果を保持するクラス
-// 最終的な出力である評価値も一緒に持たせておく
-struct alignas(32) Accumulator {
-  std::int16_t
-      accumulation[2][kRefreshTriggers.size()][kTransformedFeatureDimensions];
-  Value score = VALUE_ZERO;
-  bool computed_accumulation = false;
-  bool computed_score = false;
-};
+		//Class that holds the result of affine transformation of input features
+		// Keep the evaluation value that is the final output together
+		struct alignas(32) Accumulator {
+			std::int16_t
+				accumulation[2][kRefreshTriggers.size()][kTransformedFeatureDimensions];
+			Value score = VALUE_ZERO;
+			bool computed_accumulation = false;
+			bool computed_score = false;
+		};
 
-}  // namespace NNUE
+	} // namespace NNUE
 
-}  // namespace Eval
+} // namespace Eval
 
-#endif  // defined(EVAL_NNUE)
+#endif // defined(EVAL_NNUE)
 
 #endif

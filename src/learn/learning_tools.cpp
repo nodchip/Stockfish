@@ -23,15 +23,15 @@ namespace EvalLearningTools
 
 	std::vector<bool> min_index_flag;
 
-	// --- 個別のテーブルごとの初期化
+	// --- initialization for each individual table
 
 	void init_min_index_flag()
 	{
-		// mir_piece、inv_pieceの初期化が終わっていなければならない。
+		// Initialization of mir_piece and inv_piece must be completed.
 		assert(mir_piece(Eval::f_pawn) == Eval::e_pawn);
 
-		// 次元下げ用フラグ配列の初期化
-		// KPPPに関しては関与しない。
+		// Initialize the flag array for dimension reduction
+		// Not involved in KPPP.
 
 		KK g_kk;
 		g_kk.set(SQUARE_NB, Eval::fe_end, 0);
@@ -46,9 +46,9 @@ namespace EvalLearningTools
 #pragma omp parallel
 		{
 #if defined(_OPENMP)
-			// Windows環境下でCPUが２つあるときに、論理64コアまでしか使用されないのを防ぐために
-			// ここで明示的にCPUに割り当てる
-			int thread_index = omp_get_thread_num();    // 自分のthread numberを取得
+			// To prevent logical 64 cores from being used when there are two CPUs under Windows
+			// explicitly assign to CPU here
+			int thread_index = omp_get_thread_num(); // get your thread number
 			WinProcGroup::bindThisThread(thread_index);
 #endif
 
@@ -56,20 +56,20 @@ namespace EvalLearningTools
 
 			for (int64_t index_ = 0; index_ < (int64_t)size; ++index_)
 			{
-				// OpenMPの制約からループ変数は符号型でないといけないらしいのだが、
-				// さすがに使いにくい。
+				// It seems that the loop variable must be a sign type due to OpenMP restrictions, but
+				// It is really difficult to use.
 				uint64_t index = (uint64_t)index_;
 
 				if (g_kk.is_ok(index))
 				{
-					// indexからの変換と逆変換によって元のindexに戻ることを確認しておく。
-					// 起動時に1回しか実行しない処理なのでassertで書いておく。
+					// Make sure that the original index is restored by the conversion from index and the reverse conversion.
+					// It is a process that is executed only once at startup, so write it in assert.
 					assert(g_kk.fromIndex(index).toIndex() == index);
 
 					KK a[KK_LOWER_COUNT];
 					g_kk.fromIndex(index).toLowerDimensions(a);
 
-					// 次元下げの1つ目の要素が元のindexと同一であることを確認しておく。
+					// Make sure that the first element of dimension reduction is the same as the original index.
 					assert(a[0].toIndex() == index);
 
 					uint64_t min_index = UINT64_MAX;
@@ -118,9 +118,9 @@ namespace EvalLearningTools
 	void learning_tools_unit_test_kpp()
 	{
 
-		// KPPの三角配列化にバグがないかテストする
-		// k-p0-p1のすべての組み合わせがきちんとKPPの扱う対象になっていかと、そのときの次元下げが
-		// 正しいかを判定する。
+		// test KPP triangulation for bugs
+		// All combinations of k-p0-p1 are properly handled by KPP, and the dimension reduction at that time is
+		// Determine if it is correct.
 
 		KK g_kk;
 		g_kk.set(SQUARE_NB, Eval::fe_end, 0);
@@ -132,11 +132,11 @@ namespace EvalLearningTools
 		std::vector<bool> f;
 		f.resize(g_kpp.max_index() - g_kpp.min_index());
 
-		for(auto k = SQUARE_ZERO ; k < SQUARE_NB ; ++k)
-			for(auto p0 = BonaPiece::BONA_PIECE_ZERO; p0 < fe_end ; ++p0)
+		for (auto k = SQUARE_ZERO; k < SQUARE_NB; ++k)
+			for (auto p0 = BonaPiece::BONA_PIECE_ZERO; p0 < fe_end; ++p0)
 				for (auto p1 = BonaPiece::BONA_PIECE_ZERO; p1 < fe_end; ++p1)
 				{
-					KPP kpp_org = g_kpp.fromKPP(k,p0,p1);
+					KPP kpp_org = g_kpp.fromKPP(k, p0, p1);
 					KPP kpp0;
 					KPP kpp1 = g_kpp.fromKPP(Mir(k), mir_piece(p0), mir_piece(p1));
 					KPP kpp_array[2];
@@ -147,7 +147,7 @@ namespace EvalLearningTools
 					kpp0 = g_kpp.fromIndex(index);
 
 					//if (kpp0 != kpp_org)
-					//	std::cout << "index = " << index << "," << kpp_org << "," << kpp0 << std::endl;
+					// std::cout << "index = "<< index << "," << kpp_org << "," << kpp0 << std::endl;
 
 					kpp0.toLowerDimensions(kpp_array);
 
@@ -156,27 +156,27 @@ namespace EvalLearningTools
 					assert(kpp_array[1] == kpp1);
 
 					auto index2 = kpp1.toIndex();
-					f[index - g_kpp.min_index()] = f[index2-g_kpp.min_index()] = true;
+					f[index - g_kpp.min_index()] = f[index2 - g_kpp.min_index()] = true;
 				}
 
-		// 抜けてるindexがなかったかの確認。
-		for(size_t index = 0 ; index < f.size(); index++)
+		// Check if there is no missing index.
+		for (size_t index = 0; index < f.size(); index++)
 			if (!f[index])
 			{
-				std::cout << index << g_kpp.fromIndex(index + g_kpp.min_index()) <<  std::endl;
+				std::cout << index << g_kpp.fromIndex(index + g_kpp.min_index()) << std::endl;
 			}
 	}
 
 	void learning_tools_unit_test_kppp()
 	{
-		// KPPPの計算に抜けがないかをテストする
+		// test KPPP calculation for omissions
 
 		KPPP g_kppp;
-		g_kppp.set(15, Eval::fe_end,0);
+		g_kppp.set(15, Eval::fe_end, 0);
 		uint64_t min_index = g_kppp.min_index();
 		uint64_t max_index = g_kppp.max_index();
 
-		// 最後の要素の確認。
+		// Confirm last element.
 		//KPPP x = KPPP::fromIndex(max_index-1);
 		//std::cout << x << std::endl;
 
@@ -190,7 +190,7 @@ namespace EvalLearningTools
 				std::cout << "index = " << index << std::endl;
 
 			// index = 9360000000
-			//	done.
+			// done.
 
 			if (x.toIndex() != index)
 			{
@@ -200,7 +200,7 @@ namespace EvalLearningTools
 
 			assert(x.toIndex() == index);
 
-//			ASSERT((&kppp_ksq_pcpcpc(x.king(), x.piece0(), x.piece1(), x.piece2()) - &kppp[0][0]) == (index - min_index));
+			// ASSERT((&kppp_ksq_pcpcpc(x.king(), x.piece0(), x.piece1(), x.piece2())-&kppp[0][0]) == (index-min_index));
 		}
 
 	}
@@ -208,10 +208,10 @@ namespace EvalLearningTools
 	void learning_tools_unit_test_kkpp()
 	{
 		KKPP g_kkpp;
-		g_kkpp.set(SQUARE_NB, 10000 , 0);
+		g_kkpp.set(SQUARE_NB, 10000, 0);
 		uint64_t n = 0;
-		for (int k = 0; k<SQUARE_NB; ++k)
-			for (int i = 0; i<10000; ++i) // 試しに、かなり大きなfe_endを想定して10000で回してみる。
+		for (int k = 0; k < SQUARE_NB; ++k)
+			for (int i = 0; i < 10000; ++i) // As a test, assuming a fairly large fe_end, try turning at 10000.
 				for (int j = 0; j < i; ++j)
 				{
 					auto kkpp = g_kkpp.fromKKPP(k, (BonaPiece)i, (BonaPiece)j);
@@ -222,27 +222,27 @@ namespace EvalLearningTools
 				}
 	}
 
-	// このEvalLearningTools全体の初期化
+	// Initialize this entire EvalLearningTools
 	void init()
 	{
-		// 初期化は、起動後1回限りで良いのでそのためのフラグ。
+		// Initialization is required only once after startup, so a flag for that.
 		static bool first = true;
 
 		if (first)
 		{
 			std::cout << "EvalLearningTools init..";
 
-			// mir_piece()とinv_piece()を利用可能にする。
-			// このあとmin_index_flagの初期化を行なうが、そこが
-			// これに依存しているので、こちらを先に行なう必要がある。
+			// Make mir_piece() and inv_piece() available.
+			// After this, the initialization of min_index_flag is done, but that is
+			// It depends on this, so you need to do this first.
 			init_mir_inv_tables();
 
 			//learning_tools_unit_test_kpp();
 			//learning_tools_unit_test_kppp();
 			//learning_tools_unit_test_kkpp();
 
-			// UnitTestを実行するの最後でも良いのだが、init_min_index_flag()にとても時間がかかるので
-			// デバッグ時はこのタイミングで行いたい。
+			// It is okay at the end of executing UnitTest, but since init_min_index_flag() takes a long time
+			// I want to do this at the time of debugging.
 
 			init_min_index_flag();
 

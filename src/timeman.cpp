@@ -35,65 +35,65 @@ TimeManagement Time; // Our global time management object
 
 void TimeManagement::init(Search::LimitsType& limits, Color us, int ply) {
 
-  TimePoint minThinkingTime = TimePoint(Options["Minimum Thinking Time"]);
-  TimePoint moveOverhead    = TimePoint(Options["Move Overhead"]);
-  TimePoint slowMover       = TimePoint(Options["Slow Mover"]);
-  TimePoint npmsec          = TimePoint(Options["nodestime"]);
+	TimePoint minThinkingTime = TimePoint(Options["Minimum Thinking Time"]);
+	TimePoint moveOverhead = TimePoint(Options["Move Overhead"]);
+	TimePoint slowMover = TimePoint(Options["Slow Mover"]);
+	TimePoint npmsec = TimePoint(Options["nodestime"]);
 
-  // opt_scale is a percentage of available time to use for the current move.
-  // max_scale is a multiplier applied to optimumTime.
-  double opt_scale, max_scale;
+	// opt_scale is a percentage of available time to use for the current move.
+	// max_scale is a multiplier applied to optimumTime.
+	double opt_scale, max_scale;
 
-  // If we have to play in 'nodes as time' mode, then convert from time
-  // to nodes, and use resulting values in time management formulas.
-  // WARNING: to avoid time losses, the given npmsec (nodes per millisecond)
-  // must be much lower than the real engine speed.
-  if (npmsec)
-  {
-      if (!availableNodes) // Only once at game start
-          availableNodes = npmsec * limits.time[us]; // Time is in msec
+	// If we have to play in 'nodes as time' mode, then convert from time
+	// to nodes, and use resulting values in time management formulas.
+	// WARNING: to avoid time losses, the given npmsec (nodes per millisecond)
+	// must be much lower than the real engine speed.
+	if (npmsec)
+	{
+		if (!availableNodes) // Only once at game start
+			availableNodes = npmsec * limits.time[us]; // Time is in msec
 
-      // Convert from milliseconds to nodes
-      limits.time[us] = TimePoint(availableNodes);
-      limits.inc[us] *= npmsec;
-      limits.npmsec = npmsec;
-  }
+		// Convert from milliseconds to nodes
+		limits.time[us] = TimePoint(availableNodes);
+		limits.inc[us] *= npmsec;
+		limits.npmsec = npmsec;
+	}
 
-  startTime = limits.startTime;
+	startTime = limits.startTime;
 
-  //Maximum move horizon of 50 moves
-  int mtg = limits.movestogo ? std::min(limits.movestogo, 50) : 50;
+	//Maximum move horizon of 50 moves
+	int mtg = limits.movestogo ? std::min(limits.movestogo, 50) : 50;
 
-  // Make sure timeLeft is > 0 since we may use it as a divisor
-  TimePoint timeLeft =  std::max(TimePoint(1),
-      limits.time[us] + limits.inc[us] * (mtg - 1) - moveOverhead * (2 + mtg));
+	// Make sure timeLeft is > 0 since we may use it as a divisor
+	TimePoint timeLeft = std::max(TimePoint(1),
+		limits.time[us] + limits.inc[us] * (mtg - 1) - moveOverhead * (2 + mtg));
 
-  // A user may scale time usage by setting UCI option "Slow Mover"
-  // Default is 100 and changing this value will probably lose elo.
-  timeLeft = slowMover * timeLeft / 100;
+	// A user may scale time usage by setting UCI option "Slow Mover"
+	// Default is 100 and changing this value will probably lose elo.
+	timeLeft = slowMover * timeLeft / 100;
 
-  // x basetime (+ z increment)
-  // If there is a healthy increment, timeLeft can exceed actual available
-  // game time for the current move, so also cap to 20% of available game time.
-  if (limits.movestogo == 0)
-  {
-      opt_scale = std::min(0.008 + std::pow(ply + 3.0, 0.5) / 250.0,
-                           0.2 * limits.time[us] / double(timeLeft));
-      max_scale = 4 + std::min(36, ply) / 12.0;
-  }
+	// x basetime (+ z increment)
+	// If there is a healthy increment, timeLeft can exceed actual available
+	// game time for the current move, so also cap to 20% of available game time.
+	if (limits.movestogo == 0)
+	{
+		opt_scale = std::min(0.008 + std::pow(ply + 3.0, 0.5) / 250.0,
+			0.2 * limits.time[us] / double(timeLeft));
+		max_scale = 4 + std::min(36, ply) / 12.0;
+	}
 
-  // x moves in y seconds (+ z increment)
-  else
-  {
-      opt_scale = std::min((0.8 + ply / 128.0) / mtg,
-                            0.8 * limits.time[us] / double(timeLeft));
-      max_scale = std::min(6.3, 1.5 + 0.11 * mtg);
-  }
+	// x moves in y seconds (+ z increment)
+	else
+	{
+		opt_scale = std::min((0.8 + ply / 128.0) / mtg,
+			0.8 * limits.time[us] / double(timeLeft));
+		max_scale = std::min(6.3, 1.5 + 0.11 * mtg);
+	}
 
-  // Never use more than 80% of the available time for this move
-  optimumTime = std::max(minThinkingTime, TimePoint(opt_scale * timeLeft));
-  maximumTime = TimePoint(std::min(0.8 * limits.time[us] - moveOverhead, max_scale * optimumTime));
+	// Never use more than 80% of the available time for this move
+	optimumTime = std::max(minThinkingTime, TimePoint(opt_scale * timeLeft));
+	maximumTime = TimePoint(std::min(0.8 * limits.time[us] - moveOverhead, max_scale * optimumTime));
 
-  if (Options["Ponder"])
-      optimumTime += optimumTime / 4;
+	if (Options["Ponder"])
+		optimumTime += optimumTime / 4;
 }
