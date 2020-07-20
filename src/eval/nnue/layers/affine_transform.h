@@ -104,7 +104,7 @@ class AffineTransform {
       __m512i sum = _mm512_setzero_si512();
       const auto row = reinterpret_cast<const __m512i*>(&weights_[offset]);
       for (IndexType j = 0; j < kNumChunks; ++j) {
-#if defined(__MINGW32__) || defined(__MINGW64__)
+#if defined(__MINGW32__) || defined(__MINGW64__)  // See HACK comment below in USE_AVX2.
           __m512i product = _mm512_maddubs_epi16(_mm512_loadu_si512(&input_vector[j]), _mm512_load_si512(&row[j]));
 #else
           __m512i product = _mm512_maddubs_epi16(_mm512_load_si512(&input_vector[j]), _mm512_load_si512(&row[j]));
@@ -112,43 +112,35 @@ class AffineTransform {
           product = _mm512_madd_epi16(product, kOnes);
           sum = _mm512_add_epi32(sum, product);
       }
-      output[i] = _mm512_reduce_add_epi32(sum) + biases_[i];
       
       // Note: Changing kMaxSimdWidth from 32 to 64 breaks loading existing networks.
       // As a result kPaddedInputDimensions may not be an even multiple of 64(512bit)
       // and we have to do one more 256bit chunk.
       if (kPaddedInputDimensions != kNumChunks * kSimdWidth * 2)
       {
-          const auto iv_256  = reinterpret_cast<const __m256i*>(input);
-          const auto row_256 = reinterpret_cast<const __m256i*>(&weights_[offset]);
-          int j = kNumChunks * 2;
-#if defined(__MINGW32__) || defined(__MINGW64__)  // See HACK comment below in AVX2.
-          __m256i sum256 = _mm256_maddubs_epi16(_mm256_loadu_si256(&iv_256[j]), _mm256_load_si256(&row_256[j]));
+          const auto iv_256  = reinterpret_cast<const __m256i*>(&input_vector[kNumChunks]);
+          const auto row_256 = reinterpret_cast<const __m256i*>(&row[kNumChunks]);
+#if defined(__MINGW32__) || defined(__MINGW64__)  // See HACK comment below in USE_AVX2.
+          __m256i product256 = _mm256_maddubs_epi16(_mm256_loadu_si256(&iv_256[0]), _mm256_load_si256(&row_256[0]));
 #else
-          __m256i sum256 = _mm256_maddubs_epi16(_mm256_load_si256(&iv_256[j]), _mm256_load_si256(&row_256[j]));
+          __m256i product256 = _mm256_maddubs_epi16(_mm256_load_si256(&iv_256[0]), _mm256_load_si256(&row_256[0]));
 #endif
-          sum256 = _mm256_madd_epi16(sum256, _mm256_set1_epi16(1));
-
-          sum256 = _mm256_hadd_epi32(sum256, sum256);
-          sum256 = _mm256_hadd_epi32(sum256, sum256);
-          const __m128i lo = _mm256_extracti128_si256(sum256, 0);
-          const __m128i hi = _mm256_extracti128_si256(sum256, 1);
-          output[i] += _mm_cvtsi128_si32(lo) + _mm_cvtsi128_si32(hi);
+          product256 = _mm256_madd_epi16(product256, _mm256_set1_epi16(1));
+          sum = _mm512_add_epi32(sum, _mm512_zextsi256_si512(product256));
       }
+      output[i] = _mm512_reduce_add_epi32(sum) + biases_[i];
 #elif defined(USE_AVX2)
       __m256i sum = _mm256_setzero_si256();
       const auto row = reinterpret_cast<const __m256i*>(&weights_[offset]);
       for (IndexType j = 0; j < kNumChunks; ++j) {
-        __m256i product = _mm256_maddubs_epi16(
 #if defined(__MINGW32__) || defined(__MINGW64__)
           // HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Because the binary
           //       compiled with g++ in MSYS2 crashes here because the output memory is not aligned
           //       even though alignas is specified.
-          _mm256_loadu_si256
+          __m256i product = _mm256_maddubs_epi16(_mm256_loadu_si256(&input_vector[j]), _mm256_load_si256(&row[j]));
 #else
-          _mm256_load_si256
+          __m256i product = _mm256_maddubs_epi16(_mm256_load_si256(&input_vector[j]), _mm256_load_si256(&row[j]));
 #endif
-          (&input_vector[j]), _mm256_load_si256(&row[j]));
         product = _mm256_madd_epi16(product, kOnes);
         sum = _mm256_add_epi32(sum, product);
       }
@@ -158,7 +150,7 @@ class AffineTransform {
       const __m128i hi = _mm256_extracti128_si256(sum, 1);
       output[i] = _mm_cvtsi128_si32(lo) + _mm_cvtsi128_si32(hi) + biases_[i];
 #elif defined(USE_SSSE3)
-      __m128i sum = _mm_cvtsi32_si128(biases_[i]);
+      __m128i sum = _mm_setzero_si128();
       const auto row = reinterpret_cast<const __m128i*>(&weights_[offset]);
       for (IndexType j = 0; j < kNumChunks; ++j) {
         __m128i product = _mm_maddubs_epi16(
@@ -168,7 +160,7 @@ class AffineTransform {
       }
       sum = _mm_hadd_epi32(sum, sum);
       sum = _mm_hadd_epi32(sum, sum);
-      output[i] = _mm_cvtsi128_si32(sum);
+      output[i] = _mm_cvtsi128_si32(sum) + biases_[i];
 #elif defined(IS_ARM)
       int32x4_t sum = {biases_[i]};
       const auto row = reinterpret_cast<const int8x8_t*>(&weights_[offset]);
