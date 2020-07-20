@@ -149,7 +149,13 @@ const string engine_info(bool to_uci) {
   }
 
   ss << (Is64Bit ? " 64" : "")
+#if defined(USE_AVX512)
+     << (HasPext ? " AVX512 BMI2" : " AVX512")
+#elif defined(USE_AVX2)
+     << (HasPext ? " AVX2 BMI2" : " AVX2")
+#else
      << (HasPext ? " BMI2" : (HasPopCnt ? " POPCNT" : ""))
+#endif
      << (to_uci  ? "\nid author ": " by ")
      << "T. Romstad, M. Costalba, J. Kiiski, G. Linscott, H. Noda, Y. Nasu, M. Isozaki";
 
