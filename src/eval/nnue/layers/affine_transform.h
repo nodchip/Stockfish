@@ -118,10 +118,11 @@ class AffineTransform {
       const auto row = reinterpret_cast<const __m512i*>(&weights_[offset]);
       for (int j = 0; j < (int)kNumChunks - 1; j += 2) {
           __m512i product0 = _mm512_maddubs_epi16(_mm512_loadAU_si512(&input_vector[j]), _mm512_load_si512(&row[j]));
-          __m512i product1 = _mm512_maddubs_epi16(_mm512_loadAU_si512(&input_vector[j+1]), _mm512_load_si512(&row[j+1]));
-          product0 = _mm512_adds_epi16(product0, product1);
           product0 = _mm512_madd_epi16(product0, kOnes);
           sum = _mm512_add_epi32(sum, product0);
+          __m512i product1 = _mm512_maddubs_epi16(_mm512_loadAU_si512(&input_vector[j+1]), _mm512_load_si512(&row[j+1]));
+          product1 = _mm512_madd_epi16(product1, kOnes);
+          sum = _mm512_add_epi32(sum, product1);
       }
       if (kNumChunks & 0x1) {
           __m512i product = _mm512_maddubs_epi16(_mm512_loadAU_si512(&input_vector[kNumChunks-1]), _mm512_load_si512(&row[kNumChunks-1]));
@@ -145,10 +146,11 @@ class AffineTransform {
       const auto row = reinterpret_cast<const __m256i*>(&weights_[offset]);
       for (int j = 0; j < (int)kNumChunks - 1; j += 2) {
           __m256i product0 = _mm256_maddubs_epi16(_mm256_loadAU_si256(&input_vector[j]), _mm256_load_si256(&row[j]));
-          __m256i product1 = _mm256_maddubs_epi16(_mm256_loadAU_si256(&input_vector[j+1]), _mm256_load_si256(&row[j+1]));
-          product0 = _mm256_adds_epi16(product0, product1);
           product0 = _mm256_madd_epi16(product0, kOnes);
           sum = _mm256_add_epi32(sum, product0);
+          __m256i product1 = _mm256_maddubs_epi16(_mm256_loadAU_si256(&input_vector[j+1]), _mm256_load_si256(&row[j+1]));
+          product1 = _mm256_madd_epi16(product1, kOnes);
+          sum = _mm256_add_epi32(sum, product1);
       }
       if (kNumChunks & 0x1) {
           __m256i product = _mm256_maddubs_epi16(_mm256_loadAU_si256(&input_vector[kNumChunks-1]), _mm256_load_si256(&row[kNumChunks-1]));
@@ -163,10 +165,11 @@ class AffineTransform {
       const auto row = reinterpret_cast<const __m128i*>(&weights_[offset]);
       for (int j = 0; j < (int)kNumChunks - 1; j += 2) {
         __m128i product0 = _mm_maddubs_epi16(_mm_load_si128(&input_vector[j]), _mm_load_si128(&row[j]));
-        __m128i product1 = _mm_maddubs_epi16(_mm_load_si128(&input_vector[j+1]), _mm_load_si128(&row[j+1]));
-        product0 = _mm_adds_epi16(product0, product1);
         product0 = _mm_madd_epi16(product0, kOnes);
         sum = _mm_add_epi32(sum, product0);
+        __m128i product1 = _mm_maddubs_epi16(_mm_load_si128(&input_vector[j+1]), _mm_load_si128(&row[j+1]));
+        product1 = _mm_madd_epi16(product1, kOnes);
+        sum = _mm_add_epi32(sum, product1);
       }
       if (kNumChunks & 0x1) {
         __m128i product = _mm_maddubs_epi16(_mm_load_si128(&input_vector[kNumChunks-1]), _mm_load_si128(&row[kNumChunks-1]));
