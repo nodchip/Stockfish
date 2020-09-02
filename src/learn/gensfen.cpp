@@ -48,7 +48,7 @@
 #include <shared_mutex>
 #endif
 
-using namespace std; 
+using namespace std;
 
 namespace Learner
 {
@@ -56,7 +56,7 @@ namespace Learner
     static bool detect_draw_by_consecutive_low_score = false;
     static bool detect_draw_by_insufficient_mating_material = false;
 
-    // Use raw NNUE eval value in the Eval::evaluate(). 
+    // Use raw NNUE eval value in the Eval::evaluate().
     // If hybrid eval is enabled, training data
     // generation and training don't work well.
     // https://discordapp.com/channels/435943710472011776/733545871911813221/748524079761326192
@@ -68,7 +68,7 @@ namespace Learner
         // Amount of sfens required to flush the buffer.
         static constexpr size_t SFEN_WRITE_SIZE = 5000;
 
-        // Current status is output after 
+        // Current status is output after
         // each (SFEN_WRITE_SIZE * STATUS_OUTPUT_PERIOD) sfens
         static constexpr uint64_t STATUS_OUTPUT_PERIOD = 40;
 
@@ -108,7 +108,7 @@ namespace Learner
             // This buffer is prepared for each thread.
             auto& buf = sfen_buffers[thread_id];
 
-            // Secure since there is no buf at the first time 
+            // Secure since there is no buf at the first time
             // and immediately after writing the thread buffer.
             if (!buf)
             {
@@ -187,7 +187,7 @@ namespace Learner
 
                         sfen_write_count += buf->size();
 #if 1
-                        // Add the processed number here, and if it exceeds save_every, 
+                        // Add the processed number here, and if it exceeds save_every,
                         // change the file name and reset this counter.
                         sfen_write_count_current_file += buf->size();
                         if (sfen_write_count_current_file >= save_every)
@@ -199,8 +199,8 @@ namespace Learner
                             // Sequential number attached to the file
                             int n = (int)(sfen_write_count / save_every);
 
-                            // Rename the file and open it again. 
-                            // Add ios::app in consideration of overwriting. 
+                            // Rename the file and open it again.
+                            // Add ios::app in consideration of overwriting.
                             // (Depending on the operation, it may not be necessary.)
                             string new_filename = filename + "_" + std::to_string(n);
                             output_file_stream.open(new_filename, ios::out | ios::binary | ios::app);
@@ -210,13 +210,13 @@ namespace Learner
                         // Output '.' every time when writing a game record.
                         std::cout << ".";
 
-                        // Output the number of phases processed 
+                        // Output the number of phases processed
                         // every STATUS_OUTPUT_PERIOD times
-                        // Finally, the remainder of the teacher phase 
-                        // of each thread is written out, 
+                        // Finally, the remainder of the teacher phase
+                        // of each thread is written out,
                         // so halfway numbers are displayed, but is it okay?
-                        // If you overuse the threads to the maximum number 
-                        // of logical cores, the console will be clogged, 
+                        // If you overuse the threads to the maximum number
+                        // of logical cores, the console will be clogged,
                         // so it may be beneficial to increase that value.
                         if ((++batch_counter % STATUS_OUTPUT_PERIOD) == 0)
                         {
@@ -257,7 +257,7 @@ namespace Learner
         // buffer before writing to file
         // sfen_buffers is the buffer for each thread
         // sfen_buffers_pool is a buffer for writing.
-        // After loading the phase in the former buffer by SFEN_WRITE_SIZE, 
+        // After loading the phase in the former buffer by SFEN_WRITE_SIZE,
         // transfer it to the latter.
         std::vector<std::unique_ptr<PSVector>> sfen_buffers;
         std::vector<std::unique_ptr<PSVector>> sfen_buffers_pool;
@@ -265,7 +265,7 @@ namespace Learner
         // Mutex required to access sfen_buffers_pool
         std::mutex mutex;
 
-        // Number of sfens written in total, and the 
+        // Number of sfens written in total, and the
         // number of sfens written in the current file.
         uint64_t sfen_write_count = 0;
         uint64_t sfen_write_count_current_file = 0;
@@ -283,9 +283,9 @@ namespace Learner
         // It must be 2**N because it will be used as the mask to calculate hash_index.
         static_assert((GENSFEN_HASH_SIZE& (GENSFEN_HASH_SIZE - 1)) == 0);
 
-        MultiThinkGenSfen(int search_depth_min_, int search_depth_max_, SfenWriter& sw_) : 
-            search_depth_min(search_depth_min_), 
-            search_depth_max(search_depth_max_), 
+        MultiThinkGenSfen(int search_depth_min_, int search_depth_max_, SfenWriter& sw_) :
+            search_depth_min(search_depth_min_),
+            search_depth_max(search_depth_max_),
             sfen_writer(sw_)
         {
             hash.resize(GENSFEN_HASH_SIZE);
@@ -347,8 +347,8 @@ namespace Learner
 
         // For when using multi pv instead of random move.
         // random_multi_pv is the number of candidates for MultiPV.
-        // When adopting the move of the candidate move, the difference 
-        // between the evaluation value of the move of the 1st place 
+        // When adopting the move of the candidate move, the difference
+        // between the evaluation value of the move of the 1st place
         // and the evaluation value of the move of the Nth place is.
         // Must be in the range random_multi_pv_diff.
         // random_multi_pv_depth is the search depth for MultiPV.
@@ -356,7 +356,7 @@ namespace Learner
         int random_multi_pv_diff;
         int random_multi_pv_depth;
 
-        // The minimum and maximum ply (number of steps from 
+        // The minimum and maximum ply (number of steps from
         // the initial phase) of the sfens to write out.
         int write_minply;
         int write_maxply;
@@ -383,7 +383,7 @@ namespace Learner
         // move score in CP
         constexpr int adj_draw_score = 0;
 
-        // For the time being, it will be treated as a 
+        // For the time being, it will be treated as a
         // draw at the maximum number of steps to write.
         const int ply = move_hist_scores.size();
 
@@ -404,18 +404,18 @@ namespace Learner
         {
             Tablebases::rank_root_moves(pos, rootMoves);
         }
-        else 
+        else
         {
             // If there is no legal move
-            return pos.checkers() 
-                ? -1 /* mate */ 
+            return pos.checkers()
+                ? -1 /* mate */
                 : 0 /* stalemate */;
         }
 
         // Adjudicate game to a draw if the last 4 scores of each engine is 0.
-        if (detect_draw_by_consecutive_low_score) 
+        if (detect_draw_by_consecutive_low_score)
         {
-            if (ply >= adj_draw_ply) 
+            if (ply >= adj_draw_ply)
             {
                 int num_cons_plies_within_draw_score = 0;
                 bool is_adj_draw = false;
@@ -433,14 +433,14 @@ namespace Learner
                         break;
                     }
 
-                    if (num_cons_plies_within_draw_score >= adj_draw_cnt) 
+                    if (num_cons_plies_within_draw_score >= adj_draw_cnt)
                     {
                         is_adj_draw = true;
                         break;
                     }
                 }
 
-                if (is_adj_draw) 
+                if (is_adj_draw)
                 {
                     return 0;
                 }
@@ -448,33 +448,33 @@ namespace Learner
         }
 
         // Draw by insufficient mating material
-        if (detect_draw_by_insufficient_mating_material) 
+        if (detect_draw_by_insufficient_mating_material)
         {
-            if (pos.count<ALL_PIECES>() <= 4) 
+            if (pos.count<ALL_PIECES>() <= 4)
             {
                 int num_pieces = pos.count<ALL_PIECES>();
 
                 // (1) KvK
-                if (num_pieces == 2) 
+                if (num_pieces == 2)
                 {
                     return 0;
                 }
 
                 // (2) KvK + 1 minor piece
-                if (num_pieces == 3) 
+                if (num_pieces == 3)
                 {
                     int minor_pc = pos.count<BISHOP>(WHITE) + pos.count<KNIGHT>(WHITE) +
                         pos.count<BISHOP>(BLACK) + pos.count<KNIGHT>(BLACK);
-                    if (minor_pc == 1) 
+                    if (minor_pc == 1)
                     {
                         return 0;
                     }
                 }
 
                 // (3) KBvKB, bishops of the same color
-                else if (num_pieces == 4) 
+                else if (num_pieces == 4)
                 {
-                    if (pos.count<BISHOP>(WHITE) == 1 && pos.count<BISHOP>(BLACK) == 1) 
+                    if (pos.count<BISHOP>(WHITE) == 1 && pos.count<BISHOP>(BLACK) == 1)
                     {
                         // Color of bishops is black.
                         if ((pos.pieces(WHITE, BISHOP) & DarkSquares)
@@ -499,7 +499,7 @@ namespace Learner
     // Write out the phases loaded in sfens to a file.
     // lastTurnIsWin: win/loss in the next phase after the final phase in sfens
     // 1 when winning. -1 when losing. Pass 0 for a draw.
-    // Return value: true if the specified number of 
+    // Return value: true if the specified number of
     // sfens has already been reached and the process ends.
     bool MultiThinkGenSfen::commit_psv(PSVector& sfens, size_t thread_id, int8_t lastTurnIsWin)
     {
@@ -507,6 +507,8 @@ namespace Learner
 
         // From the final stage (one step before) to the first stage, give information on the outcome of the game for each stage.
         // The phases stored in sfens are assumed to be continuous (in order).
+        bool quit = false;
+        int num_sfens_to_commit = 0;
         for (auto it = sfens.rbegin(); it != sfens.rend(); ++it)
         {
             // If is_win == 0 (draw), multiply by -1 and it will remain 0 (draw)
@@ -518,19 +520,25 @@ namespace Learner
             auto now_loop_count = get_next_loop_count();
             if (now_loop_count == LOOP_COUNT_FINISHED)
             {
-                return true;
+                quit = true;
+                break;
             }
 
+            ++num_sfens_to_commit;
+        }
+
+        // Write sfens in move order to make potential compression easier
+        for (auto it = sfens.end() - num_sfens_to_commit; it != sfens.end(); ++it)
+        {
             // Write out one sfen.
             sfen_writer.write(thread_id, *it);
-
 #if 0
             pos.set_from_packed_sfen(it->sfen);
             cout << pos << "Win : " << it->is_win << " , " << it->score << endl;
 #endif
         }
 
-        return false;
+        return quit;
     }
 
     optional<Move> MultiThinkGenSfen::choose_random_move(
@@ -563,7 +571,7 @@ namespace Learner
                     // Normally one move from legal move
                     random_move = list.at((size_t)prng.rand((uint64_t)list.size()));
                 }
-                else 
+                else
                 {
                     // if you can move the king, move the king
                     Move moves[8]; // Near 8
@@ -582,7 +590,7 @@ namespace Learner
                         // move to move the king
                         random_move = moves[prng.rand(n)];
 
-                        // In Apery method, at this time there is a 1/2 chance 
+                        // In Apery method, at this time there is a 1/2 chance
                         // that the opponent will also move randomly
                         if (prng.rand(2) == 0)
                         {
@@ -597,7 +605,7 @@ namespace Learner
                     }
                 }
             }
-            else 
+            else
             {
                 Learner::search(pos, random_multi_pv_depth, random_multi_pv);
 
@@ -607,7 +615,7 @@ namespace Learner
                 uint64_t s = min((uint64_t)rm.size(), (uint64_t)random_multi_pv);
                 for (uint64_t i = 1; i < s; ++i)
                 {
-                    // The difference from the evaluation value of rm[0] must 
+                    // The difference from the evaluation value of rm[0] must
                     // be within the range of random_multi_pv_diff.
                     // It can be assumed that rm[x].score is arranged in descending order.
                     if (rm[0].score > rm[i].score + random_multi_pv_diff)
@@ -634,7 +642,7 @@ namespace Learner
 
         // Make an array like a[0] = 0 ,a[1] = 1, ...
         // Fisher-Yates shuffle and take out the first N items.
-        // Actually, I only want N pieces, so I only need 
+        // Actually, I only want N pieces, so I only need
         // to shuffle the first N pieces with Fisher-Yates.
 
         vector<int> a;
@@ -662,7 +670,7 @@ namespace Learner
     }
 
     Value MultiThinkGenSfen::evaluate_leaf(
-        Position& pos, 
+        Position& pos,
         std::vector<StateInfo, AlignedAllocator<StateInfo>>& states,
         int ply,
         vector<Move>& pv)
@@ -680,9 +688,9 @@ namespace Learner
 #endif
             pos.do_move(m, states[ply++]);
 
-            // Because the difference calculation of evaluate() cannot be 
+            // Because the difference calculation of evaluate() cannot be
             // performed unless each node evaluate() is called!
-            // If the depth is 8 or more, it seems 
+            // If the depth is 8 or more, it seems
             // faster not to calculate this difference.
 #if defined(EVAL_NNUE)
             if (depth < 8)
@@ -701,7 +709,7 @@ namespace Learner
             // VALUE_NONE and let the caller assign a value to the position.
             return VALUE_NONE;
         }
-        else 
+        else
         {
             v = Eval::evaluate(pos);
 
@@ -725,7 +733,7 @@ namespace Learner
     // thread_id = 0..Threads.size()-1
     void MultiThinkGenSfen::thread_worker(size_t thread_id)
     {
-        // For the time being, it will be treated as a draw 
+        // For the time being, it will be treated as a draw
         // at the maximum number of steps to write.
         // Maximum StateInfo + Search PV to advance to leaf buffer
         std::vector<StateInfo, AlignedAllocator<StateInfo>> states(
@@ -760,7 +768,7 @@ namespace Learner
             vector<uint8_t> random_move_flag = generate_random_move_flags();
 
             // A counter that keeps track of the number of random moves
-            // When random_move_minply == -1, random moves are 
+            // When random_move_minply == -1, random moves are
             // performed continuously, so use it at this time.
             // Used internally by choose_random_move.
             int actual_random_move_count = 0;
@@ -796,19 +804,19 @@ namespace Learner
 
                     if (random_move_minply != -1)
                     {
-                        // Random move is performed with a certain 
+                        // Random move is performed with a certain
                         // probability even in the constant phase.
                         goto RANDOM_MOVE;
                     }
                     else
                     {
-                        // When -1 is specified as random_move_minply, 
-                        // it points according to the standard until 
+                        // When -1 is specified as random_move_minply,
+                        // it points according to the standard until
                         // it goes out of the standard.
-                        // Prepare an innumerable number of situations 
-                        // that have left the constant as 
+                        // Prepare an innumerable number of situations
+                        // that have left the constant as
                         // ConsiderationBookMoveCount true using a huge constant
-                        // Used for purposes such as performing 
+                        // Used for purposes such as performing
                         // a random move 5 times from there.
                         goto DO_MOVE;
                     }
@@ -899,14 +907,14 @@ namespace Learner
                         // Result is added after the whole game is done.
                         pos.sfen_pack(psv.sfen);
 
-                        // Get the value of evaluate() as seen from the 
+                        // Get the value of evaluate() as seen from the
                         // root color on the leaf node of the PV line.
-                        // I don't know the goodness and badness of using the 
+                        // I don't know the goodness and badness of using the
                         // return value of search() as it is.
                         // TODO: Consider using search value instead of evaluate_leaf.
                         //       Maybe give it as an option.
-                        
-                        // Use PV moves to reach the leaf node and use the value 
+
+                        // Use PV moves to reach the leaf node and use the value
                         // that evaluated() is called on that leaf node.
                         const auto leaf_value = evaluate_leaf(pos, states, ply, search_pv);
 
@@ -923,7 +931,7 @@ namespace Learner
 
                 SKIP_SAVE:;
 
-                    // For some reason, We could not get PV (hit the substitution table etc. and got stuck?) 
+                    // For some reason, We could not get PV (hit the substitution table etc. and got stuck?)
                     // so go to the next game. It's a rare case, so you can ignore it.
                     if (search_pv.size() == 0)
                     {
@@ -941,7 +949,7 @@ namespace Learner
                 {
                     next_move = random_move.value();
 
-                    // We don't have the whole game yet, but it ended, 
+                    // We don't have the whole game yet, but it ended,
                     // so the writing process ends and the next game starts.
                     if (!is_ok(next_move))
                     {
