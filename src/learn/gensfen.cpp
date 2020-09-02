@@ -1,6 +1,4 @@
-﻿#define EVAL_LEARN
-
-#if defined(EVAL_LEARN)
+﻿#if defined(EVAL_LEARN)
 
 #include "../eval/evaluate_common.h"
 
@@ -319,6 +317,7 @@ namespace Learner
             Position& pos,
             std::vector<StateInfo, AlignedAllocator<StateInfo>>& states,
             int ply,
+            int depth,
             vector<Move>& pv);
 
         // Min and max depths for search during gensfen
@@ -673,6 +672,7 @@ namespace Learner
         Position& pos,
         std::vector<StateInfo, AlignedAllocator<StateInfo>>& states,
         int ply,
+        int depth,
         vector<Move>& pv)
     {
         auto rootColor = pos.side_to_move();
@@ -916,7 +916,7 @@ namespace Learner
 
                         // Use PV moves to reach the leaf node and use the value
                         // that evaluated() is called on that leaf node.
-                        const auto leaf_value = evaluate_leaf(pos, states, ply, search_pv);
+                        const auto leaf_value = evaluate_leaf(pos, states, ply, depth, search_pv);
 
                         // If for some reason the leaf node couldn't yield an eval
                         // we fallback to search value.
