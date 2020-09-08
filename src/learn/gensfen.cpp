@@ -54,11 +54,6 @@ namespace Learner
     static bool detect_draw_by_consecutive_low_score = false;
     static bool detect_draw_by_insufficient_mating_material = false;
 
-    // Use raw NNUE eval value in the Eval::evaluate().
-    // If hybrid eval is enabled, training data
-    // generation and training don't work well.
-    // https://discordapp.com/channels/435943710472011776/733545871911813221/748524079761326192
-    static bool use_raw_nnue_eval = true;
 
     // Helper class for exporting Sfen
     struct SfenWriter
@@ -312,13 +307,6 @@ namespace Learner
             std::vector<uint8_t>& random_move_flag,
             int ply,
             int& random_move_c);
-
-        Value evaluate_leaf(
-            Position& pos,
-            std::vector<StateInfo, AlignedAllocator<StateInfo>>& states,
-            int ply,
-            int depth,
-            vector<Move>& pv);
 
         // Min and max depths for search during gensfen
         int search_depth_min;
@@ -674,69 +662,6 @@ namespace Learner
         return random_move_flag;
     }
 
-    Value MultiThinkGenSfen::evaluate_leaf(
-        Position& pos,
-        std::vector<StateInfo, AlignedAllocator<StateInfo>>& states,
-        int ply,
-        int depth,
-        vector<Move>& pv)
-    {
-        auto rootColor = pos.side_to_move();
-
-        for (auto m : pv)
-        {
-#if 1
-            // There should be no illegal move. This is as a debugging precaution.
-            if (!pos.pseudo_legal(m) || !pos.legal(m))
-            {
-                cout << "Error! : " << pos.fen() << m << endl;
-            }
-#endif
-            pos.do_move(m, states[ply++]);
-
-            // Because the difference calculation of evaluate() cannot be
-            // performed unless each node evaluate() is called!
-            // If the depth is 8 or more, it seems
-            // faster not to calculate this difference.
-#if defined(EVAL_NNUE)
-            if (depth < 8)
-            {
-                Eval::NNUE::update_eval(pos);
-            }
-#endif  // defined(EVAL_NNUE)
-        }
-
-        // Reach leaf
-        Value v;
-        if (pos.checkers())
-        {
-            // Sometime a king is checked.  An example is a case that a checkmate is
-            // found in the search.  If Eval::evaluate() is called whne a king is
-            // checked, classic eval crashes by an assertion. To avoid crashes, return
-            // VALUE_NONE and let the caller assign a value to the position.
-            v = VALUE_NONE;
-        }
-        else
-        {
-            v = Eval::evaluate(pos);
-
-            // evaluate() returns the evaluation value on the turn side, so
-            // If it's a turn different from root_color, you must invert v and return it.
-            if (rootColor != pos.side_to_move())
-            {
-                v = -v;
-            }
-        }
-
-        // Rewind the pv moves.
-        for (auto it = pv.rbegin(); it != pv.rend(); ++it)
-        {
-            pos.undo_move(*it);
-        }
-
-        return v;
-    }
-
     // thread_id = 0..Threads.size()-1
     void MultiThinkGenSfen::thread_worker(size_t thread_id)
     {
@@ -916,18 +841,7 @@ namespace Learner
 
                         // Get the value of evaluate() as seen from the
                         // root color on the leaf node of the PV line.
-                        // I don't know the goodness and badness of using the
-                        // return value of search() as it is.
-                        // TODO: Consider using search value instead of evaluate_leaf.
-                        //       Maybe give it as an option.
-
-                        // Use PV moves to reach the leaf node and use the value
-                        // that evaluated() is called on that leaf node.
-                        const auto leaf_value = evaluate_leaf(pos, states, ply, depth, search_pv);
-
-                        // If for some reason the leaf node couldn't yield an eval
-                        // we fallback to search value.
-                        psv.score = leaf_value == VALUE_NONE ? search_value : leaf_value;
+                        psv.score = search_value;
 
                         psv.gamePly = ply;
 
@@ -1095,17 +1009,9 @@ namespace Learner
                 is >> detect_draw_by_consecutive_low_score;
             else if (token == "detect_draw_by_insufficient_mating_material")
                 is >> detect_draw_by_insufficient_mating_material;
-            else if (token == "use_raw_nnue_eval")
-                is >> use_raw_nnue_eval;
             else
                 cout << "Error! : Illegal token " << token << endl;
         }
-
-#if defined(USE_GLOBAL_OPTIONS)
-        // Save it for later restore.
-        auto oldGlobalOptions = GlobalOptions;
-        GlobalOptions.use_eval_hash = use_eval_hash;
-#endif
 
         // If search depth2 is not set, leave it the same as search depth.
         if (search_depth_max == INT_MIN)
@@ -1187,11 +1093,6 @@ namespace Learner
         }
 
         std::cout << "gensfen finished." << endl;
-
-#if defined(USE_GLOBAL_OPTIONS)
-        // Restore Global Options.
-        GlobalOptions = oldGlobalOptions;
-#endif
 
     }
 }

@@ -32,13 +32,6 @@
 #include "thread.h"
 #include "uci.h"
 
-#ifdef EVAL_LEARN
-namespace Learner
-{
-    extern bool use_raw_nnue_eval;
-}
-#endif
-
 namespace Eval {
 
   bool useNNUE;
@@ -948,7 +941,7 @@ make_v:
 
 Value Eval::evaluate(const Position& pos) {
 #ifdef EVAL_LEARN
-  if (Learner::use_raw_nnue_eval) {
+  if (Options["Training"]) {
       return NNUE::evaluate(pos);
   }
 #endif

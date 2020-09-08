@@ -195,8 +195,6 @@ void Search::init() {
 
   for (int i = 1; i < MAX_MOVES; ++i)
       Reductions[i] = int((22.0 + std::log(Threads.size())) * std::log(i));
-
-  training = Options["Training"];
 }
 
 
@@ -217,6 +215,8 @@ void Search::clear() {
 /// command. It searches from the root position and outputs the "bestmove".
 
 void MainThread::search() {
+
+  training = Options["Training"];
 
   if (Limits.perft)
   {
@@ -667,7 +667,15 @@ namespace {
     // position key in case of an excluded move.
     excludedMove = ss->excludedMove;
     posKey = excludedMove == MOVE_NONE ? pos.key() : pos.key() ^ make_key(excludedMove);
-    tte = TT.probe(posKey, ttHit);
+#if defined(EVAL_LEARN)
+    if(!training) {
+#endif
+      tte = TT.probe(posKey, ttHit);
+#if defined(EVAL_LEARN)
+    } else {
+      ttHit = false;
+    }
+#endif
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
     ttMove =  rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
             : ttHit    ? tte->move() : MOVE_NONE;
@@ -752,10 +760,16 @@ namespace {
                 if (    b == BOUND_EXACT
                     || (b == BOUND_LOWER ? value >= beta : value <= alpha))
                 {
+#if defined(EVAL_LEARN)
+                    if(!training) {
+#endif
                     tte->save(posKey, value_to_tt(value, ss->ply), ttPv, b,
                               std::min(MAX_PLY - 1, depth + 6),
                               MOVE_NONE, VALUE_NONE);
 
+#if defined(EVAL_LEARN)
+                    }
+#endif
                     return value;
                 }
 
@@ -802,7 +816,13 @@ namespace {
         else
             ss->staticEval = eval = -(ss-1)->staticEval + 2 * Tempo;
 
+#if defined(EVAL_LEARN)
+        if(!training) {
+#endif
         tte->save(posKey, VALUE_NONE, ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
+#if defined(EVAL_LEARN)
+        }
+#endif
     }
 
     // Step 7. Razoring (~1 Elo)
@@ -932,6 +952,9 @@ namespace {
 
                 if (value >= probCutBeta)
                 {
+#if defined(EVAL_LEARN)
+                    if(!training) {
+#endif
                     // if transposition table doesn't have equal or more deep info write probCut data into it
                     if ( !(ttHit
                        && tte->depth() >= depth - 3
@@ -939,6 +962,10 @@ namespace {
                         tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
                             BOUND_LOWER,
                             depth - 3, move, ss->staticEval);
+
+#if defined(EVAL_LEARN)
+                    }
+#endif
                     return value;
                 }
             }
@@ -1390,12 +1417,18 @@ moves_loop: // When in check, search starts from here
     if (PvNode)
         bestValue = std::min(bestValue, maxValue);
 
+#if defined(EVAL_LEARN)
+    if(!training) {
+#endif
     if (!excludedMove && !(rootNode && thisThread->pvIdx))
         tte->save(posKey, value_to_tt(bestValue, ss->ply), ttPv,
                   bestValue >= beta ? BOUND_LOWER :
                   PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
                   depth, bestMove, ss->staticEval);
 
+#if defined(EVAL_LEARN)
+    }
+#endif
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
     return bestValue;
@@ -1450,7 +1483,15 @@ moves_loop: // When in check, search starts from here
                                                   : DEPTH_QS_NO_CHECKS;
     // Transposition table lookup
     posKey = pos.key();
-    tte = TT.probe(posKey, ttHit);
+#if defined(EVAL_LEARN)
+    if(!training) {
+#endif
+      tte = TT.probe(posKey, ttHit);
+#if defined(EVAL_LEARN)
+    } else {
+      ttHit = false;
+    }
+#endif
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply, pos.rule50_count()) : VALUE_NONE;
     ttMove = ttHit ? tte->move() : MOVE_NONE;
     pvHit = ttHit && tte->is_pv();
@@ -1490,10 +1531,15 @@ moves_loop: // When in check, search starts from here
         // Stand pat. Return immediately if static value is at least beta
         if (bestValue >= beta)
         {
+#if defined(EVAL_LEARN)
+            if(!training) {
+#endif
             if (!ttHit)
                 tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
                           DEPTH_NONE, MOVE_NONE, ss->staticEval);
-
+#if defined(EVAL_LEARN)
+            }
+#endif
             return bestValue;
         }
 
@@ -1557,9 +1603,15 @@ moves_loop: // When in check, search starts from here
       if (  !ss->inCheck && !pos.see_ge(move))
           continue;
 
+#if defined(EVAL_LEARN)
+      if(!training) {
+#endif
       // Speculative prefetch as early as possible
       prefetch(TT.first_entry(pos.key_after(move)));
 
+#if defined(EVAL_LEARN)
+      }
+#endif
       // Check for legality just before making the move
       if (
 #if defined(EVAL_LEARN)
@@ -1617,11 +1669,17 @@ moves_loop: // When in check, search starts from here
     if (ss->inCheck && bestValue == -VALUE_INFINITE)
         return mated_in(ss->ply); // Plies to mate from the root
 
+#if defined(EVAL_LEARN)
+    if(!training) {
+#endif
     tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
               bestValue >= beta ? BOUND_LOWER :
               PvNode && bestValue > oldAlpha  ? BOUND_EXACT : BOUND_UPPER,
               ttDepth, bestMove, ss->staticEval);
 
+#if defined(EVAL_LEARN)
+    }
+#endif
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
     return bestValue;
@@ -2070,17 +2128,6 @@ namespace Learner
         rootMoves.push_back(Search::RootMove(m));
 
       assert(!rootMoves.empty());
-
-      //#if defined(USE_GLOBAL_OPTIONS)
-      // Since the generation of the substitution table for each search thread should be managed,
-      // Increase the generation of the substitution table for this thread because it is a new search.
-            //TT.new_search(th->thread_id());
-
-            // ª If you call new_search here, it may be a loss because you can't use the previous search result.
-            // Do not do this here, but caller should do TT.new_search(th->thread_id()) for each station ...
-
-            // ¨Because we want to avoid reaching the same final diagram, use the substitution table commonly for all threads when generating teachers.
-      //#endif
     }
   }
 
