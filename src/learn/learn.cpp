@@ -1061,6 +1061,13 @@ namespace Learner
                     if (sr.next_update_weights == 0)
                     {
                         sr.next_update_weights += mini_batch_size;
+                        if (newbob_decay != 1.0) {
+                            calc_loss(thread_id, -1);
+                            best_loss = latest_loss_sum / latest_loss_count;
+                            latest_loss_sum = 0.0;
+                            latest_loss_count = 0;
+                            cout << "initial loss: " << best_loss << endl;
+                        }
                         continue;
                     }
 
@@ -1084,6 +1091,9 @@ namespace Learner
                         const bool converged = save();
                         if (converged)
                         {
+                            lock_guard<shared_timed_mutex> write_lock(nn_mutex);
+                            Eval::NNUE::FinalizeNet();
+                            save(true);
                             stop_flag = true;
                             sr.stop_flag = true;
                             break;
@@ -1979,28 +1989,12 @@ namespace Learner
             sr.read_validation_set(validation_set_file_name, eval_limit);
         }
 
-        // Calculate rmse once at this point (timing of 0 sfen)
-        // sr.calc_rmse();
-
-        if (newbob_decay != 1.0) {
-            learn_think.calc_loss(0, -1);
-            learn_think.best_loss = learn_think.latest_loss_sum / learn_think.latest_loss_count;
-            learn_think.latest_loss_sum = 0.0;
-            learn_think.latest_loss_count = 0;
-            cout << "initial loss: " << learn_think.best_loss << endl;
-        }
-
         // -----------------------------------
         // start learning evaluation function parameters
         // -----------------------------------
 
         // Start learning.
         learn_think.go_think();
-
-        Eval::NNUE::FinalizeNet();
-
-        // Save once at the end.
-        learn_think.save(true);
     }
 
 } // namespace Learner
