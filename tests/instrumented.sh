@@ -64,6 +64,8 @@ EOF
   ;;
 esac
 
+postfix=''
+
 # simple command line testing
 for args in "eval" \
             "go nodes 1000" \
