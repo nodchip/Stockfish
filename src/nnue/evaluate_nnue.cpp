@@ -69,23 +69,23 @@ namespace Eval::NNUE {
     std::string eval_file_loaded = "None";
 
     // Get a string that represents the structure of the evaluation function
-    std::string GetArchitectureString() {
-        return "Features=" + FeatureTransformer::GetStructureString() +
-          ",Network=" + Network::GetStructureString();
+    std::string get_architecture_string() {
+        return "Features=" + FeatureTransformer::get_structure_string() +
+          ",Network=" + Network::get_structure_string();
     }
 
     namespace Detail {
 
         // Initialize the evaluation function parameters
         template <typename T>
-        void Initialize(AlignedPtr<T>& pointer) {
+        void initialize(AlignedPtr<T>& pointer) {
 
             pointer.reset(reinterpret_cast<T*>(std_aligned_alloc(alignof(T), sizeof(T))));
             std::memset(pointer.get(), 0, sizeof(T));
         }
 
         template <typename T>
-        void Initialize(LargePagePtr<T>& pointer) {
+        void initialize(LargePagePtr<T>& pointer) {
 
             static_assert(alignof(T) <= 4096,
               "aligned_large_pages_alloc() may fail for such a big alignment requirement of T");
@@ -96,46 +96,46 @@ namespace Eval::NNUE {
 
         // Read evaluation function parameters
         template <typename T>
-        bool ReadParameters(std::istream& stream, T& reference) {
+        bool read_parameters(std::istream& stream, T& reference) {
 
             std::uint32_t header;
             header = read_little_endian<std::uint32_t>(stream);
-            if (!stream || header != T::GetHashValue())
+            if (!stream || header != T::get_hash_value())
                 return false;
 
-            return reference.ReadParameters(stream);
+            return reference.read_parameters(stream);
         }
 
         // write evaluation function parameters
         template <typename T>
-        bool WriteParameters(std::ostream& stream, const AlignedPtr<T>& pointer) {
-            constexpr std::uint32_t header = T::GetHashValue();
+        bool write_parameters(std::ostream& stream, const AlignedPtr<T>& pointer) {
+            constexpr std::uint32_t header = T::get_hash_value();
 
             stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
 
-            return pointer->WriteParameters(stream);
+            return pointer->write_parameters(stream);
         }
 
         template <typename T>
-        bool WriteParameters(std::ostream& stream, const LargePagePtr<T>& pointer) {
-            constexpr std::uint32_t header = T::GetHashValue();
+        bool write_parameters(std::ostream& stream, const LargePagePtr<T>& pointer) {
+            constexpr std::uint32_t header = T::get_hash_value();
 
             stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
 
-            return pointer->WriteParameters(stream);
+            return pointer->write_parameters(stream);
         }
 
     }  // namespace Detail
 
     // Initialize the evaluation function parameters
-    void Initialize() {
+    void initialize() {
 
-        Detail::Initialize(feature_transformer);
-        Detail::Initialize(network);
+        Detail::initialize(feature_transformer);
+        Detail::initialize(network);
     }
 
     // Read network header
-    bool ReadHeader(std::istream& stream, std::uint32_t* hash_value, std::string* architecture)
+    bool read_header(std::istream& stream, std::uint32_t* hash_value, std::string* architecture)
     {
         std::uint32_t version, size;
 
@@ -152,7 +152,7 @@ namespace Eval::NNUE {
     }
 
     // write the header
-    bool WriteHeader(std::ostream& stream,
+    bool write_header(std::ostream& stream,
         std::uint32_t hash_value, const std::string& architecture) {
         stream.write(reinterpret_cast<const char*>(&kVersion), sizeof(kVersion));
         stream.write(reinterpret_cast<const char*>(&hash_value), sizeof(hash_value));
@@ -165,34 +165,34 @@ namespace Eval::NNUE {
     }
 
     // Read network parameters
-    bool ReadParameters(std::istream& stream) {
+    bool read_parameters(std::istream& stream) {
 
         std::uint32_t hash_value;
         std::string architecture;
 
-        if (!ReadHeader(stream, &hash_value, &architecture))
+        if (!read_header(stream, &hash_value, &architecture))
             return false;
 
         if (hash_value != kHashValue)
             return false;
 
-        if (!Detail::ReadParameters(stream, *feature_transformer))
+        if (!Detail::read_parameters(stream, *feature_transformer))
             return false;
 
-        if (!Detail::ReadParameters(stream, *network))
+        if (!Detail::read_parameters(stream, *network))
             return false;
 
         return stream && stream.peek() == std::ios::traits_type::eof();
     }
     // write evaluation function parameters
-    bool WriteParameters(std::ostream& stream) {
-        if (!WriteHeader(stream, kHashValue, GetArchitectureString()))
+    bool write_parameters(std::ostream& stream) {
+        if (!write_header(stream, kHashValue, get_architecture_string()))
             return false;
 
-        if (!Detail::WriteParameters(stream, feature_transformer))
+        if (!Detail::write_parameters(stream, feature_transformer))
             return false;
 
-        if (!Detail::WriteParameters(stream, network))
+        if (!Detail::write_parameters(stream, network))
             return false;
 
         return !stream.fail();
@@ -203,10 +203,10 @@ namespace Eval::NNUE {
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
 
-        feature_transformer->Transform(pos, transformed_features);
+        feature_transformer->transform(pos, transformed_features);
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 
-        const auto output = network->Propagate(transformed_features, buffer);
+        const auto output = network->propagate(transformed_features, buffer);
 
         return static_cast<Value>(output[0] / FV_SCALE);
     }
@@ -214,7 +214,7 @@ namespace Eval::NNUE {
     // Load eval, from a file stream or a memory stream
     bool load_eval(std::string name, std::istream& stream) {
 
-        Initialize();
+        initialize();
 
         if (Options["SkipLoadingEval"])
         {
@@ -223,7 +223,7 @@ namespace Eval::NNUE {
         }
 
         fileName = name;
-        return ReadParameters(stream);
+        return read_parameters(stream);
     }
 
     static UseNNUEMode nnue_mode_from_option(const UCI::Option& mode)
