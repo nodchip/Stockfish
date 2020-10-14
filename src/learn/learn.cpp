@@ -1194,7 +1194,7 @@ namespace Learner
                 {
                     cout << " < best (" << best_loss << "), accepted" << endl;
                     best_loss = latest_loss;
-                    best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
+                    best_nn_directory = Path::combine((std::string)Options["EvalSaveDir"], dir_name);
                     trials = newbob_num_trials;
 
                     if (tot >= last_lr_drop + auto_lr_drop)
