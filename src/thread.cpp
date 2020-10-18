@@ -80,10 +80,10 @@ void Thread::start_searching() {
   cv.notify_one(); // Wake up the thread in idle_loop()
 }
 
-void Thread::execute_task(std::function<void(Thread&)> t)
+void Thread::execute_with_worker(std::function<void(Thread&)> t)
 {
   std::lock_guard<std::mutex> lk(mutex);
-  task = std::move(t);
+  worker = std::move(t);
   cv.notify_one(); // Wake up the thread in idle_loop()
 }
 
@@ -98,10 +98,10 @@ void Thread::wait_for_search_finished() {
 }
 
 
-void Thread::wait_for_task_finished() {
+void Thread::wait_for_worker_finished() {
 
   std::unique_lock<std::mutex> lk(mutex);
-  cv.wait(lk, [&]{ return !task; });
+  cv.wait(lk, [&]{ return !worker; });
 }
 
 /// Thread::idle_loop() is where the thread is parked, blocked on the
@@ -122,17 +122,17 @@ void Thread::idle_loop() {
       std::unique_lock<std::mutex> lk(mutex);
       searching = false;
       cv.notify_one(); // Wake up anyone waiting for search finished
-      cv.wait(lk, [&]{ return searching || task; });
+      cv.wait(lk, [&]{ return searching || worker; });
 
       if (exit)
           return;
 
       lk.unlock();
 
-      if (task)
+      if (worker)
       {
-        task(*this);
-        task = nullptr;
+        worker(*this);
+        worker = nullptr;
       }
       else
       {
@@ -183,11 +183,11 @@ void ThreadPool::clear() {
 }
 
 
-void ThreadPool::execute_parallel(std::function<void(Thread&)> task)
+void ThreadPool::execute_with_workers(std::function<void(Thread&)> worker)
 {
   for(Thread* th : *this)
   {
-    th->execute_task(task);
+    th->execute_with_worker(worker);
   }
 }
 
@@ -301,8 +301,8 @@ void ThreadPool::wait_for_search_finished() const {
 }
 
 
-void ThreadPool::wait_for_tasks_finished() const {
+void ThreadPool::wait_for_workers_finished() const {
 
     for (Thread* th : *this)
-        th->wait_for_task_finished();
+        th->wait_for_worker_finished();
 }
