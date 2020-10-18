@@ -661,12 +661,13 @@ namespace Learner
         void calc_loss_task(
             Thread& th,
             std::atomic<int>& counter,
+            const PSVector& psv,
             AtomicEntropy& test_entropy_sum,
             atomic<double>& sum_norm,
             atomic<int>& move_accord_count
         );
         void calc_loss_par();
-        void calc_loss_par2();
+        void calc_loss_par2(const PSVector& psv);
 
         // Start a thread that loads the phase file in the background.
         void start_file_read_worker()
@@ -946,7 +947,7 @@ namespace Learner
             loss_output_count = 0;
 
             // loss calculation
-            calc_loss_par2();
+            calc_loss_par2(sr.sfen_for_mse);
 
             Eval::NNUE::check_health();
         }
@@ -960,7 +961,7 @@ namespace Learner
         // Once this value is updated, it will start moving again.
     }
 
-    void LearnerThink::calc_loss_par2()
+    void LearnerThink::calc_loss_par2(const PSVector& psv)
     {
         // There is no point in hitting the replacement table,
         // so at this timing the generation of the replacement table is updated.
@@ -998,15 +999,14 @@ namespace Learner
         // I created a mechanism to call task, so I will use it.
 
         // The number of tasks to do.
-        atomic<int> task_count;
-        task_count = 0;
-
+        atomic<int> counter{0};
 
         std::cout << "calc tasks actual:\n";
         Threads.execute_parallel([&](auto& th){
             calc_loss_task(
                 th,
-                task_count,
+                counter,
+                psv,
                 test_entropy_sum,
                 sum_norm,
                 move_accord_count
@@ -1017,24 +1017,24 @@ namespace Learner
 
 
         latest_loss_sum += test_entropy_sum.cross_entropy - test_entropy_sum.entropy;
-        latest_loss_count += sr.sfen_for_mse.size();
+        latest_loss_count += psv.size();
 
         // learn_cross_entropy may be called train cross
         // entropy in the world of machine learning,
         // When omitting the acronym, it is nice to be able to
         // distinguish it from test cross entropy(tce) by writing it as lce.
         int done = 1;
-        if (sr.sfen_for_mse.size() && done)
+        if (psv.size() && done)
         {
             cout << "INFO: "
-                << "test_cross_entropy_eval = " << test_entropy_sum.cross_entropy_eval / sr.sfen_for_mse.size()
-                << " , test_cross_entropy_win = " << test_entropy_sum.cross_entropy_win / sr.sfen_for_mse.size()
-                << " , test_entropy_eval = " << test_entropy_sum.entropy_eval / sr.sfen_for_mse.size()
-                << " , test_entropy_win = " << test_entropy_sum.entropy_win / sr.sfen_for_mse.size()
-                << " , test_cross_entropy = " << test_entropy_sum.cross_entropy / sr.sfen_for_mse.size()
-                << " , test_entropy = " << test_entropy_sum.entropy / sr.sfen_for_mse.size()
+                << "test_cross_entropy_eval = " << test_entropy_sum.cross_entropy_eval / psv.size()
+                << " , test_cross_entropy_win = " << test_entropy_sum.cross_entropy_win / psv.size()
+                << " , test_entropy_eval = " << test_entropy_sum.entropy_eval / psv.size()
+                << " , test_entropy_win = " << test_entropy_sum.entropy_win / psv.size()
+                << " , test_cross_entropy = " << test_entropy_sum.cross_entropy / psv.size()
+                << " , test_entropy = " << test_entropy_sum.entropy / psv.size()
                 << " , norm = " << sum_norm
-                << " , move accuracy = " << (move_accord_count * 100.0 / sr.sfen_for_mse.size()) << "%"
+                << " , move accuracy = " << (move_accord_count * 100.0 / psv.size()) << "%"
                 << endl;
 
             if (done != static_cast<uint64_t>(-1))
@@ -1061,6 +1061,7 @@ namespace Learner
     void LearnerThink::calc_loss_task(
         Thread& th,
         std::atomic<int>& counter,
+        const PSVector& psv,
         AtomicEntropy& test_entropy_sum,
         atomic<double>& sum_norm,
         atomic<int>& move_accord_count
@@ -1069,12 +1070,12 @@ namespace Learner
         for(;;)
         {
             const auto task_id = counter.fetch_add(1);
-            if (task_id >= (int)sr.sfen_for_mse.size())
+            if (task_id >= (int)psv.size())
             {
                 break;
             }
 
-            const auto& ps = sr.sfen_for_mse[task_id];
+            const auto& ps = psv[task_id];
 
             // Assign work to each thread using TaskDispatcher.
             // A task definition for that.
