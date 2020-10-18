@@ -134,7 +134,7 @@ public:
     for(int i = 0; i < 64; ++i)
     {
       const auto off = rand64() % 64;
-      seed |= (rand64() & (1 << off)) >> off;
+      seed |= (rand64() & (static_cast<uint64_t>(1) << off)) >> off;
       seed <<= 1;
     }
     return seed;

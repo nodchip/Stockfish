@@ -45,6 +45,7 @@ class Thread {
   std::condition_variable cv;
   size_t idx;
   bool exit = false, searching = true; // Set before starting std::thread
+  std::function<void(Thread&)> worker;
   NativeThread stdThread;
 
 public:
@@ -81,8 +82,6 @@ public:
   int Cardinality;
   bool UseRule50;
   Depth ProbeDepth;
-
-  std::function<void(Thread&)> worker;
 };
 
 
