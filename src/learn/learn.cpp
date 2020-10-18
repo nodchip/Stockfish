@@ -694,6 +694,11 @@ namespace Learner
 
     private:
         void learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
+
+        void update_weights();
+
+        void calc_loss(const PSVector& psv);
+
         void calc_loss_task(
             Thread& th,
             std::atomic<uint64_t>& counter,
@@ -702,8 +707,6 @@ namespace Learner
             atomic<double>& sum_norm,
             atomic<int>& move_accord_count
         );
-        void update_weights();
-        void calc_loss(const PSVector& psv);
 
         Value get_shallow_value(Position& task_pos);
 
@@ -734,31 +737,62 @@ namespace Learner
         PRNG prng;
     };
 
-    Value LearnerThink::get_shallow_value(Position& task_pos)
+    void LearnerThink::learn()
     {
-        // Evaluation value for shallow search
-        // The value of evaluate() may be used, but when calculating loss, learn_cross_entropy and
-        // Use qsearch() because it is difficult to compare the values.
-        // EvalHash has been disabled in advance. (If not, the same value will be returned every time)
-        const auto [_, pv] = Search::qsearch(task_pos);
+        Eval::NNUE::verify_any_net_loaded();
 
-        const auto rootColor = task_pos.side_to_move();
-
-        std::vector<StateInfo, AlignedAllocator<StateInfo>> states(pv.size());
-        for (size_t i = 0; i < pv.size(); ++i)
+        // Start a thread that loads the phase file in the background
+        // (If this is not started, mse cannot be calculated.)
+        sr.start_file_read_worker();
+        if (validation_set_file_name.empty())
         {
-            task_pos.do_move(pv[i], states[i]);
+            // Get about 10,000 data for mse calculation.
+            sr.read_for_mse();
+        }
+        else
+        {
+            sr.read_validation_set(validation_set_file_name, eval_limit);
         }
 
-        const Value shallow_value =
-            (rootColor == task_pos.side_to_move())
-            ? Eval::evaluate(task_pos)
-            : -Eval::evaluate(task_pos);
+#if defined(_OPENMP)
+        omp_set_num_threads((int)Options["Threads"]);
+#endif
 
-        for (auto it = pv.rbegin(); it != pv.rend(); ++it)
-            task_pos.undo_move(*it);
+        if (newbob_decay != 1.0) {
+            calc_loss(sr.get_sfens_for_mse());
+            best_loss = latest_loss_sum / latest_loss_count;
+            latest_loss_sum = 0.0;
+            latest_loss_count = 0;
+            cout << "initial loss: " << best_loss << endl;
+        }
 
-        return shallow_value;
+        for(;;)
+        {
+            stop_flag = false;
+
+            std::atomic<uint64_t> counter{0};
+
+            Threads.execute_parallel([this, &counter](auto& th){
+                learn_task(th, counter, mini_batch_size);
+            });
+
+            total_done += mini_batch_size;
+
+            Threads.wait_for_tasks_finished();
+            if (stop_flag)
+                break;
+
+            update_weights();
+            if (stop_flag)
+                break;
+        }
+
+        sr.stop();
+
+        Eval::NNUE::finalize_net();
+
+        // Save once at the end.
+        save(true);
     }
 
     void LearnerThink::learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit)
@@ -1088,62 +1122,31 @@ namespace Learner
         }
     }
 
-    void LearnerThink::learn()
+    Value LearnerThink::get_shallow_value(Position& task_pos)
     {
-        Eval::NNUE::verify_any_net_loaded();
+        // Evaluation value for shallow search
+        // The value of evaluate() may be used, but when calculating loss, learn_cross_entropy and
+        // Use qsearch() because it is difficult to compare the values.
+        // EvalHash has been disabled in advance. (If not, the same value will be returned every time)
+        const auto [_, pv] = Search::qsearch(task_pos);
 
-        // Start a thread that loads the phase file in the background
-        // (If this is not started, mse cannot be calculated.)
-        sr.start_file_read_worker();
-        if (validation_set_file_name.empty())
+        const auto rootColor = task_pos.side_to_move();
+
+        std::vector<StateInfo, AlignedAllocator<StateInfo>> states(pv.size());
+        for (size_t i = 0; i < pv.size(); ++i)
         {
-            // Get about 10,000 data for mse calculation.
-            sr.read_for_mse();
-        }
-        else
-        {
-            sr.read_validation_set(validation_set_file_name, eval_limit);
+            task_pos.do_move(pv[i], states[i]);
         }
 
-#if defined(_OPENMP)
-        omp_set_num_threads((int)Options["Threads"]);
-#endif
+        const Value shallow_value =
+            (rootColor == task_pos.side_to_move())
+            ? Eval::evaluate(task_pos)
+            : -Eval::evaluate(task_pos);
 
-        if (newbob_decay != 1.0) {
-            calc_loss(sr.get_sfens_for_mse());
-            best_loss = latest_loss_sum / latest_loss_count;
-            latest_loss_sum = 0.0;
-            latest_loss_count = 0;
-            cout << "initial loss: " << best_loss << endl;
-        }
+        for (auto it = pv.rbegin(); it != pv.rend(); ++it)
+            task_pos.undo_move(*it);
 
-        for(;;)
-        {
-            stop_flag = false;
-
-            std::atomic<uint64_t> counter{0};
-
-            Threads.execute_parallel([this, &counter](auto& th){
-                learn_task(th, counter, mini_batch_size);
-            });
-
-            total_done += mini_batch_size;
-
-            Threads.wait_for_tasks_finished();
-            if (stop_flag)
-                break;
-
-            update_weights();
-            if (stop_flag)
-                break;
-        }
-
-        sr.stop();
-
-        Eval::NNUE::finalize_net();
-
-        // Save once at the end.
-        save(true);
+        return shallow_value;
     }
 
     // Write evaluation function file.
