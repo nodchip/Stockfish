@@ -677,7 +677,7 @@ namespace Learner
         void learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
         void calc_loss_task(
             Thread& th,
-            std::atomic<int>& counter,
+            std::atomic<uint64_t>& counter,
             const PSVector& psv,
             AtomicEntropy& test_entropy_sum,
             atomic<double>& sum_norm,
@@ -1002,21 +1002,21 @@ namespace Learner
         // search matches the pv first move of search(1).
         atomic<int> move_accord_count{0};
 
-        auto th = Threads.main();
-        th->execute_task([](auto& th){
+        auto mainThread = Threads.main();
+        mainThread->execute_task([](auto& th){
             auto& pos = th.rootPos;
             StateInfo si;
             pos.set(StartFEN, false, &si, &th);
             cout << "startpos eval = " << Eval::evaluate(pos) << endl;
         });
-        th->wait_for_task_finished();
+        mainThread->wait_for_task_finished();
 
         // It's better to parallelize here, but it's a bit
         // troublesome because the search before slave has not finished.
         // I created a mechanism to call task, so I will use it.
 
         // The number of tasks to do.
-        atomic<int> counter{0};
+        atomic<uint64_t> counter{0};
 
         std::cout << "calc tasks actual:\n";
         Threads.execute_parallel([&](auto& th){
@@ -1042,6 +1042,10 @@ namespace Learner
         // distinguish it from test cross entropy(tce) by writing it as lce.
         if (psv.size() && test_entropy_sum.count > 0.0)
         {
+            cout << "INFO: norm = " << sum_norm
+                << " , move accuracy = " << (move_accord_count * 100.0 / psv.size()) << "%"
+                << endl;
+
             test_entropy_sum.print(cout);
 
             if (learn_entropy_sum.count > 0.0)
@@ -1060,7 +1064,7 @@ namespace Learner
 
     void LearnerThink::calc_loss_task(
         Thread& th,
-        std::atomic<int>& counter,
+        std::atomic<uint64_t>& counter,
         const PSVector& psv,
         AtomicEntropy& test_entropy_sum,
         atomic<double>& sum_norm,
@@ -1070,7 +1074,7 @@ namespace Learner
         for(;;)
         {
             const auto task_id = counter.fetch_add(1);
-            if (task_id >= (int)psv.size())
+            if (task_id >= psv.size())
             {
                 break;
             }
@@ -1081,56 +1085,41 @@ namespace Learner
             // A task definition for that.
             // It is not possible to capture pos used in ↑,
             // so specify the variables you want to capture one by one.
-            auto task =
-                [
-                    this,
-                    &th,
-                    &ps,
-                    &test_entropy_sum,
-                    &sum_norm,
-                    &move_accord_count
-                ]()
+            auto task_th = &th;
+            auto& task_pos = task_th->rootPos;
+            StateInfo task_si;
+            if (task_pos.set_from_packed_sfen(ps.sfen, &task_si, task_th) != 0)
             {
-                auto task_th = &th;
-                auto& task_pos = task_th->rootPos;
-                StateInfo task_si;
-                if (task_pos.set_from_packed_sfen(ps.sfen, &task_si, task_th) != 0)
-                {
-                    // Unfortunately, as an sfen for rmse calculation, an invalid sfen was drawn.
-                    cout << "Error! : illegal packed sfen " << task_pos.fen() << endl;
-                }
+                // Unfortunately, as an sfen for rmse calculation, an invalid sfen was drawn.
+                cout << "Error! : illegal packed sfen " << task_pos.fen() << endl;
+            }
 
-                const Value shallow_value = get_shallow_value(task_pos);
+            const Value shallow_value = get_shallow_value(task_pos);
 
-                // Evaluation value of deep search
-                auto deep_value = (Value)ps.score;
+            // Evaluation value of deep search
+            const auto deep_value = (Value)ps.score;
 
-                // Note) This code does not consider when
-                //       eval_limit is specified in the learn command.
+            // Note) This code does not consider when
+            //       eval_limit is specified in the learn command.
 
-                // --- calculation of cross entropy
+            // --- calculation of cross entropy
 
-                // For the time being, regarding the win rate and loss terms only in the elmo method
-                // Calculate and display the cross entropy.
+            // For the time being, regarding the win rate and loss terms only in the elmo method
+            // Calculate and display the cross entropy.
 
-                const auto entropy = calc_cross_entropy(
-                    deep_value,
-                    shallow_value,
-                    ps);
+            const auto entropy = calc_cross_entropy(
+                deep_value,
+                shallow_value,
+                ps);
 
-                // The total cross entropy need not be abs() by definition.
-                test_entropy_sum += entropy;
-                sum_norm += (double)abs(shallow_value);
+            // The total cross entropy need not be abs() by definition.
+            test_entropy_sum += entropy;
+            sum_norm += (double)abs(shallow_value);
 
-                // Determine if the teacher's move and the score of the shallow search match
-                {
-                    const auto [value, pv] = Search::search(task_pos, 1);
-                    if ((uint16_t)pv[0] == ps.move)
-                        move_accord_count.fetch_add(1, std::memory_order_relaxed);
-                }
-            };
-
-            task();
+            // Determine if the teacher's move and the score of the shallow search match
+            const auto [value, pv] = Search::search(task_pos, 1);
+            if (pv.size() > 0 && (uint16_t)pv[0] == ps.move)
+                move_accord_count.fetch_add(1, std::memory_order_relaxed);
         }
     }
 
