@@ -508,6 +508,8 @@ namespace Learner
         const auto thread_id = th.thread_idx();
         auto& pos = th.rootPos;
 
+        Entropy local_entropy_sum{};
+
         while(!stop_flag)
         {
             const auto iter = counter.fetch_add(1);
@@ -612,7 +614,7 @@ namespace Learner
                     shallow_value,
                     ps);
 
-                learn_entropy_sum += entropy;
+                local_entropy_sum += entropy;
 
                 Eval::NNUE::add_example(pos, rootColor, ps, 1.0);
             };
@@ -641,6 +643,8 @@ namespace Learner
             // Since we have reached the end phase of PV, add the slope here.
             pos_add_grad();
         }
+
+        learn_entropy_sum += local_entropy_sum;
     }
 
     void LearnerThink::update_weights(const PSVector& psv)
@@ -778,6 +782,8 @@ namespace Learner
         atomic<int>& move_accord_count
     )
     {
+        Entropy local_entropy_sum{};
+
         for(;;)
         {
             const auto task_id = counter.fetch_add(1);
@@ -820,7 +826,7 @@ namespace Learner
                 ps);
 
             // The total cross entropy need not be abs() by definition.
-            test_entropy_sum += entropy;
+            local_entropy_sum += entropy;
             sum_norm += (double)abs(shallow_value);
 
             // Determine if the teacher's move and the score of the shallow search match
@@ -828,6 +834,8 @@ namespace Learner
             if (pv.size() > 0 && (uint16_t)pv[0] == ps.move)
                 move_accord_count.fetch_add(1, std::memory_order_relaxed);
         }
+
+        test_entropy_sum += local_entropy_sum;
     }
 
     Value LearnerThink::get_shallow_value(Position& task_pos)
