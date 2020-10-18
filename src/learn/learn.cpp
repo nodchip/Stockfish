@@ -19,7 +19,6 @@
 
 #include "learn.h"
 
-#include "convert.h"
 #include "sfen_reader.h"
 
 #include "misc.h"
@@ -154,6 +153,32 @@ namespace Learner
 
     using Entropy = EntropyTemplate<false>;
     using AtomicEntropy = EntropyTemplate<true>;
+
+    static void append_files_from_dir(
+        std::vector<std::string>& filenames,
+        const std::string& base_dir,
+        const std::string& target_dir)
+    {
+        string kif_base_dir = Path::combine(base_dir, target_dir);
+
+        namespace sys = std::filesystem;
+        sys::path p(kif_base_dir); // Origin of enumeration
+        std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
+            [&](const sys::path& path) {
+                if (sys::is_regular_file(path))
+                    filenames.push_back(Path::combine(target_dir, path.filename().generic_string()));
+            });
+    }
+
+    static void rebase_files(
+        std::vector<std::string>& filenames,
+        const std::string& base_dir)
+    {
+        for (auto& file : filenames)
+        {
+            file = Path::combine(base_dir, file);
+        }
+    }
 
     // A function that converts the evaluation value to the winning rate [0,1]
     double winning_percentage(double value)
@@ -912,28 +937,7 @@ namespace Learner
 
         // Game file storage folder (get game file with relative path from here)
         string base_dir;
-
         string target_dir;
-
-        // --- Function that only shuffles the teacher aspect
-
-        // normal shuffle
-        // Conversion of packed sfen. In plain, it consists of sfen(string),
-        // evaluation value (integer), move (eg 7g7f, string), result (loss-1, win 1, draw 0)
-        bool use_convert_plain = false;
-        // convert plain format teacher to Yaneura King's bin
-        bool use_convert_bin = false;
-        int ply_minimum = 0;
-        int ply_maximum = 114514;
-        bool interpolate_eval = 0;
-        bool check_invalid_fen = false;
-        bool check_illegal_move = false;
-        // convert teacher in pgn-extract format to Yaneura King's bin
-        bool use_convert_bin_from_pgn_extract = false;
-        bool pgn_eval_side_to_move = false;
-        bool convert_no_eval_fens_as_score_zero = false;
-        // File name to write in those cases (default is "shuffled_sfen.bin")
-        string output_file_name = "shuffled_sfen.bin";
 
         // If the absolute value of the evaluation value
         // in the deep search of the teacher phase exceeds this value,
@@ -1051,19 +1055,11 @@ namespace Learner
             else if (option == "loss_output_interval") is >> loss_output_interval;
             else if (option == "validation_set_file_name") is >> validation_set_file_name;
 
-            // Rabbit convert related
-            else if (option == "convert_plain") use_convert_plain = true;
-            else if (option == "convert_bin") use_convert_bin = true;
-            else if (option == "interpolate_eval") is >> interpolate_eval;
-            else if (option == "check_invalid_fen") is >> check_invalid_fen;
-            else if (option == "check_illegal_move") is >> check_illegal_move;
-            else if (option == "convert_bin_from_pgn-extract") use_convert_bin_from_pgn_extract = true;
-            else if (option == "pgn_eval_side_to_move") is >> pgn_eval_side_to_move;
-            else if (option == "convert_no_eval_fens_as_score_zero") is >> convert_no_eval_fens_as_score_zero;
             else if (option == "src_score_min_value") is >> src_score_min_value;
             else if (option == "src_score_max_value") is >> src_score_max_value;
             else if (option == "dest_score_min_value") is >> dest_score_min_value;
             else if (option == "dest_score_max_value") is >> dest_score_max_value;
+
             else if (option == "seed") is >> seed;
             else if (option == "set_recommended_uci_options")
             {
@@ -1095,20 +1091,12 @@ namespace Learner
         cout << "Warning! OpenMP disabled." << endl;
 #endif
 
-        LearnerThink learn_think(thread_num, seed);
-
-        // Display learning game file
-        if (target_dir != "")
+        // Right now we only have the individual files.
+        // We need to apply base_dir here
+        rebase_files(filenames, base_dir);
+        if (!target_dir.empty())
         {
-            string kif_base_dir = Path::combine(base_dir, target_dir);
-
-            namespace sys = std::filesystem;
-            sys::path p(kif_base_dir); // Origin of enumeration
-            std::for_each(sys::directory_iterator(p), sys::directory_iterator(),
-                [&](const sys::path& path) {
-                    if (sys::is_regular_file(path))
-                        filenames.push_back(Path::combine(target_dir, path.filename().generic_string()));
-                });
+            append_files_from_dir(filenames, base_dir, target_dir);
         }
 
         cout << "learn from ";
@@ -1123,48 +1111,6 @@ namespace Learner
 
         cout << "base dir        : " << base_dir << endl;
         cout << "target dir      : " << target_dir << endl;
-
-        if (use_convert_plain)
-        {
-            Eval::NNUE::init();
-            cout << "convert_plain.." << endl;
-            convert_plain(filenames, output_file_name);
-            return;
-        }
-
-        if (use_convert_bin)
-        {
-            Eval::NNUE::init();
-            cout << "convert_bin.." << endl;
-            convert_bin(
-                filenames,
-                output_file_name,
-                ply_minimum,
-                ply_maximum,
-                interpolate_eval,
-                src_score_min_value,
-                src_score_max_value,
-                dest_score_min_value,
-                dest_score_max_value,
-                check_invalid_fen,
-                check_illegal_move);
-
-            return;
-
-        }
-
-        if (use_convert_bin_from_pgn_extract)
-        {
-            Eval::NNUE::init();
-            cout << "convert_bin_from_pgn-extract.." << endl;
-            convert_bin_from_pgn_extract(
-                filenames,
-                output_file_name,
-                pgn_eval_side_to_move,
-                convert_no_eval_fens_as_score_zero);
-
-            return;
-        }
 
         cout << "loop              : " << loop << endl;
         cout << "eval_limit        : " << eval_limit << endl;
@@ -1206,6 +1152,8 @@ namespace Learner
 
         cout << "init.." << endl;
 
+        LearnerThink learn_think(thread_num, seed);
+
         Threads.main()->ponder = false;
 
         set_learning_search_limits();
@@ -1223,8 +1171,6 @@ namespace Learner
             learn_think.best_nn_directory =
                 Path::combine(Options["EvalSaveDir"], "original");
         }
-
-        cout << "init done." << endl;
 
         // Reflect other option settings.
         learn_think.eval_limit = eval_limit;
@@ -1250,6 +1196,8 @@ namespace Learner
                 learn_think.add_file(Path::combine(base_dir, file));
             }
         }
+
+        cout << "init done." << endl;
 
         // Start learning.
         learn_think.learn();
