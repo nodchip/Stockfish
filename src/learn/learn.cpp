@@ -351,11 +351,6 @@ namespace Learner
         // SFEN_READ_SIZE is a multiple of THREAD_BUFFER_SIZE.
         static constexpr const size_t SFEN_READ_SIZE = LEARN_SFEN_READ_SIZE;
 
-        // hash to limit the reading of the same situation
-        // Is there too many 64 million phases? Or Not really..
-        // It must be 2**N because it will be used as the mask to calculate hash_index.
-        static constexpr uint64_t READ_SFEN_HASH_SIZE = 64 * 1024 * 1024;
-
         // Do not use std::random_device().
         // Because it always the same integers on MinGW.
         SfenReader(int thread_num, const std::string& seed) :
@@ -364,10 +359,8 @@ namespace Learner
             packed_sfens.resize(thread_num);
             total_read = 0;
             end_of_files = false;
-            no_shuffle = false;
+            shuffle = true;
             stop_flag = false;
-
-            hash.resize(READ_SFEN_HASH_SIZE);
         }
 
         ~SfenReader()
@@ -559,7 +552,7 @@ namespace Learner
                 }
 
                 // Shuffle the read phase data.
-                if (!no_shuffle)
+                if (shuffle)
                 {
                     Algo::shuffle(sfens, prng);
                 }
@@ -604,26 +597,39 @@ namespace Learner
             return sfen_for_mse_hash.count(key) != 0;
         }
 
+        void stop()
+        {
+            stop_flag = true;
+        }
+
+        const PSVector& get_sfens_for_mse() const
+        {
+            return sfen_for_mse;
+        }
+
+        void set_do_shuffle(bool v)
+        {
+            shuffle = v;
+        }
+
         // sfen files
         vector<string> filenames;
-
-        // number of phases read (file to memory buffer)
-        atomic<uint64_t> total_read;
-
-        // Do not shuffle when reading the phase.
-        bool no_shuffle;
-
-        std::atomic<bool> stop_flag;
-
-        vector<Key> hash;
-
-        // test phase for mse calculation
-        PSVector sfen_for_mse;
 
     protected:
 
         // worker thread reading file in background
         std::thread file_worker_thread;
+
+        std::atomic<bool> stop_flag;
+
+        // test phase for mse calculation
+        PSVector sfen_for_mse;
+
+        // number of phases read (file to memory buffer)
+        atomic<uint64_t> total_read;
+
+        // Do not shuffle when reading the phase.
+        bool shuffle;
 
         // Random number to shuffle when reading the phase
         PRNG prng;
@@ -655,10 +661,10 @@ namespace Learner
     {
         LearnerThink(SfenReader& sr_, const std::string& seed) :
             sr(sr_),
-            save_only_once(false),
             learn_entropy_sum{},
             prng(seed)
         {
+            save_only_once = false;
             save_count = 0;
             newbob_decay = 1.0;
             newbob_num_trials = 2;
@@ -670,24 +676,18 @@ namespace Learner
             total_done = 0;
         }
 
+        void set_do_shuffle(bool v)
+        {
+            sr.set_do_shuffle(v);
+        }
+
         void learn();
+
 
         std::string validation_set_file_name;
 
-        uint64_t save_count;
-
-        // sfen reader
-        SfenReader& sr;
-
-        // Learning iteration counter
-        uint64_t epoch = 0;
-
         // Mini batch size size. Be sure to set it on the side that uses this class.
         uint64_t mini_batch_size = LEARN_MINI_BATCH_SIZE;
-
-        std::atomic<bool> stop_flag;
-
-        uint64_t total_done;
 
         // Option to exclude early stage from learning
         int reduction_gameply;
@@ -700,24 +700,14 @@ namespace Learner
         // If true, do not dig the folder.
         bool save_only_once;
 
-        // --- loss calculation
-
-        // For calculation of learning data loss
-        AtomicEntropy learn_entropy_sum;
-
         double newbob_decay;
         int newbob_num_trials;
         uint64_t auto_lr_drop;
-        uint64_t last_lr_drop;
-        double best_loss;
-        double latest_loss_sum;
-        uint64_t latest_loss_count;
+
         std::string best_nn_directory;
 
         uint64_t eval_save_interval;
         uint64_t loss_output_interval;
-
-        PRNG prng;
 
     private:
         void learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
@@ -736,6 +726,29 @@ namespace Learner
 
         // save merit function parameters to a file
         bool save(bool is_final = false);
+
+
+        uint64_t save_count;
+
+        // sfen reader
+        SfenReader& sr;
+
+        // Learning iteration counter
+        uint64_t epoch = 0;
+
+        std::atomic<bool> stop_flag;
+
+        uint64_t total_done;
+
+        uint64_t last_lr_drop;
+        double best_loss;
+        double latest_loss_sum;
+        uint64_t latest_loss_count;
+
+        // For calculation of learning data loss
+        AtomicEntropy learn_entropy_sum;
+
+        PRNG prng;
     };
 
     Value LearnerThink::get_shallow_value(Position& task_pos)
@@ -943,7 +956,7 @@ namespace Learner
             loss_output_count = 0;
 
             // loss calculation
-            calc_loss(sr.sfen_for_mse);
+            calc_loss(sr.get_sfens_for_mse());
 
             Eval::NNUE::check_health();
         }
@@ -1024,7 +1037,7 @@ namespace Learner
         }
         else
         {
-            cout << "Error! : sr.sfen_for_mse.size() = " << sr.sfen_for_mse.size() << " ,  done = " << test_entropy_sum.count << endl;
+            cout << "Error! : psv.size() = " << psv.size() << " ,  done = " << test_entropy_sum.count << endl;
         }
 
         // Clear 0 for next time.
@@ -1114,7 +1127,7 @@ namespace Learner
 #endif
 
         if (newbob_decay != 1.0) {
-            calc_loss(sr.sfen_for_mse);
+            calc_loss(sr.get_sfens_for_mse());
             best_loss = latest_loss_sum / latest_loss_count;
             latest_loss_sum = 0.0;
             latest_loss_count = 0;
@@ -1142,7 +1155,7 @@ namespace Learner
                 break;
         }
 
-        sr.stop_flag = true;
+        sr.stop();
 
         Eval::NNUE::finalize_net();
 
@@ -1867,7 +1880,7 @@ namespace Learner
         // Reflect other option settings.
         learn_think.eval_limit = eval_limit;
         learn_think.save_only_once = save_only_once;
-        learn_think.sr.no_shuffle = no_shuffle;
+        learn_think.set_do_shuffle(!no_shuffle);
         learn_think.reduction_gameply = reduction_gameply;
 
         learn_think.newbob_decay = newbob_decay;
