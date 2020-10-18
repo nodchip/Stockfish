@@ -336,12 +336,6 @@ namespace Learner
     // Sfen reader
     struct SfenReader
     {
-        // Number of phases used for calculation such as mse
-        // mini-batch size = 1M is standard, so 0.2% of that should be negligible in terms of time.
-        // Since search() is performed with depth = 1 in calculation of
-        // move match rate, simple comparison is not possible...
-        static constexpr uint64_t sfen_for_mse_size = 2000;
-
         // Number of phases buffered by each thread 0.1M phases. 4M phase at 40HT
         static constexpr size_t THREAD_BUFFER_SIZE = 10 * 1000;
 
@@ -370,23 +364,30 @@ namespace Learner
         }
 
         // Load the phase for calculation such as mse.
-        void read_for_mse()
+        PSVector read_for_mse(uint64_t count)
         {
-            for (uint64_t i = 0; i < sfen_for_mse_size; ++i)
+            PSVector sfen_for_mse;
+            sfen_for_mse.reserve(count);
+
+            for (uint64_t i = 0; i < count; ++i)
             {
                 PackedSfenValue ps;
                 if (!read_to_thread_buffer(0, ps))
                 {
                     cout << "Error! read packed sfen , failed." << endl;
-                    return;
+                    return sfen_for_mse;
                 }
 
                 sfen_for_mse.push_back(ps);
             }
+
+            return sfen_for_mse;
         }
 
-        void read_validation_set(const string& file_name, int eval_limit)
+        PSVector read_validation_set(const string& file_name, int eval_limit)
         {
+            PSVector sfen_for_mse;
+
             auto input = open_sfen_input_file(file_name);
 
             while(!input->eof())
@@ -409,6 +410,8 @@ namespace Learner
                     break;
                 }
             }
+
+            return sfen_for_mse;
         }
 
         // [ASYNC] Thread returns one aspect. Otherwise returns false.
@@ -588,11 +591,6 @@ namespace Learner
             stop_flag = true;
         }
 
-        const PSVector& get_sfens_for_mse() const
-        {
-            return sfen_for_mse;
-        }
-
         void set_do_shuffle(bool v)
         {
             shuffle = v;
@@ -607,9 +605,6 @@ namespace Learner
         std::thread file_worker_thread;
 
         std::atomic<bool> stop_flag;
-
-        // test phase for mse calculation
-        PSVector sfen_for_mse;
 
         // number of phases read (file to memory buffer)
         atomic<uint64_t> total_read;
@@ -642,6 +637,12 @@ namespace Learner
     // Class to generate sfen with multiple threads
     struct LearnerThink
     {
+        // Number of phases used for calculation such as mse
+        // mini-batch size = 1M is standard, so 0.2% of that should be negligible in terms of time.
+        // Since search() is performed with depth = 1 in calculation of
+        // move match rate, simple comparison is not possible...
+        static constexpr uint64_t sfen_for_mse_size = 2000;
+
         LearnerThink(SfenReader& sr_, const std::string& seed) :
             sr(sr_),
             learn_entropy_sum{},
@@ -695,7 +696,7 @@ namespace Learner
     private:
         void learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
 
-        void update_weights();
+        void update_weights(const PSVector& psv);
 
         void calc_loss(const PSVector& psv);
 
@@ -744,14 +745,17 @@ namespace Learner
         // Start a thread that loads the phase file in the background
         // (If this is not started, mse cannot be calculated.)
         sr.start_file_read_worker();
-        if (validation_set_file_name.empty())
+
+        const PSVector sfen_for_mse =
+            validation_set_file_name.empty()
+            ? sr.read_for_mse(sfen_for_mse_size)
+            : sr.read_validation_set(validation_set_file_name, eval_limit);
+
+        if (validation_set_file_name.empty() && sfen_for_mse.size() != sfen_for_mse_size)
         {
-            // Get about 10,000 data for mse calculation.
-            sr.read_for_mse();
-        }
-        else
-        {
-            sr.read_validation_set(validation_set_file_name, eval_limit);
+            cout << "Error reading sfen_for_mse. Read " << sfen_for_mse.size() << " out of " << sfen_for_mse_size << '\n';
+            sr.stop();
+            return;
         }
 
 #if defined(_OPENMP)
@@ -759,7 +763,7 @@ namespace Learner
 #endif
 
         if (newbob_decay != 1.0) {
-            calc_loss(sr.get_sfens_for_mse());
+            calc_loss(sfen_for_mse);
             best_loss = latest_loss_sum / latest_loss_count;
             latest_loss_sum = 0.0;
             latest_loss_count = 0;
@@ -782,7 +786,7 @@ namespace Learner
             if (stop_flag)
                 break;
 
-            update_weights();
+            update_weights(sfen_for_mse);
             if (stop_flag)
                 break;
         }
@@ -935,7 +939,7 @@ namespace Learner
         }
     }
 
-    void LearnerThink::update_weights()
+    void LearnerThink::update_weights(const PSVector& psv)
     {
         // display mse (this is sometimes done only for thread 0)
         // Immediately after being read from the file...
@@ -973,7 +977,7 @@ namespace Learner
             loss_output_count = 0;
 
             // loss calculation
-            calc_loss(sr.get_sfens_for_mse());
+            calc_loss(psv);
 
             Eval::NNUE::check_health();
         }
