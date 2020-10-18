@@ -20,7 +20,6 @@
 #include "learn.h"
 
 #include "convert.h"
-#include "multi_think.h"
 #include "sfen_stream.h"
 
 #include "misc.h"
@@ -618,13 +617,13 @@ namespace Learner
     };
 
     // Class to generate sfen with multiple threads
-    struct LearnerThink : public MultiThink
+    struct LearnerThink
     {
         LearnerThink(SfenReader& sr_, const std::string& seed) :
-            MultiThink(seed),
             sr(sr_),
             stop_flag(false),
-            save_only_once(false)
+            save_only_once(false),
+            prng(seed)
         {
             learn_sum_cross_entropy_eval = 0.0;
             learn_sum_cross_entropy_win = 0.0;
@@ -642,7 +641,7 @@ namespace Learner
             latest_loss_count = 0;
         }
 
-        virtual void thread_worker(size_t thread_id);
+        void thread_worker();
 
         void learn_task(Thread& th);
         void calc_loss_task(
@@ -716,8 +715,7 @@ namespace Learner
         uint64_t eval_save_interval;
         uint64_t loss_output_interval;
 
-        // Define the loss calculation in ↑ as a task and execute it
-        TaskDispatcher task_dispatcher;
+        PRNG prng;
     };
 
     Value LearnerThink::get_shallow_value(Position& task_pos)
@@ -1194,35 +1192,30 @@ namespace Learner
         }
     }
 
-    void LearnerThink::thread_worker(size_t thread_id)
+    void LearnerThink::thread_worker()
     {
-        if (thread_id == 0)
-        {
 #if defined(_OPENMP)
         omp_set_num_threads((int)Options["Threads"]);
 #endif
-            while(true)
-            {
-                error_flag = false;
-                stop_flag = false;
-                std::cout << "learn tasks:\n";
-                Threads.execute_parallel([this](auto& th){
-                    learn_task(th);
-                });
-                std::cout << "wait for learn tasks:\n";
-                Threads.wait_for_tasks_finished();
-                if (error_flag)
-                    break;
+        while(true)
+        {
+            error_flag = false;
+            stop_flag = false;
+            std::cout << "learn tasks:\n";
+            Threads.execute_parallel([this](auto& th){
+                learn_task(th);
+            });
+            std::cout << "wait for learn tasks:\n";
+            Threads.wait_for_tasks_finished();
+            if (error_flag)
+                break;
 
-                stop_flag = false;
-                std::cout << "calc tasks:\n";
-                calc_loss_par();
-                if (error_flag)
-                    break;
-            }
+            stop_flag = false;
+            std::cout << "calc tasks:\n";
+            calc_loss_par();
+            if (error_flag)
+                break;
         }
-
-        return;
     }
 
     // Write evaluation function file.
@@ -1988,7 +1981,7 @@ namespace Learner
         // -----------------------------------
 
         // Start learning.
-        learn_think.go_think();
+        learn_think.thread_worker();
 
         Eval::NNUE::finalize_net();
 
