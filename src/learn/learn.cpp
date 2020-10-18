@@ -110,6 +110,7 @@ namespace Learner
         T entropy_eval{0.0};
         T entropy_win{0.0};
         T entropy{0.0};
+        T count{0.0};
 
         template <bool OtherAtomicV>
         EntropyTemplate& operator += (const EntropyTemplate<OtherAtomicV>& rhs)
@@ -120,8 +121,22 @@ namespace Learner
             entropy_eval += rhs.entropy_eval;
             entropy_win += rhs.entropy_win;
             entropy += rhs.entropy;
+            count += rhs.count;
 
             return *this;
+        }
+
+        void print(ostream& s) const
+        {
+            s
+                << "INFO: "
+                << "learn_cross_entropy_eval = " << cross_entropy_eval / count
+                << " , learn_cross_entropy_win = " << cross_entropy_win / count
+                << " , learn_entropy_eval = " << entropy_eval / count
+                << " , learn_entropy_win = " << entropy_win / count
+                << " , learn_cross_entropy = " << cross_entropy / count
+                << " , learn_entropy = " << entropy / count
+                << endl;
         }
     };
 
@@ -306,6 +321,8 @@ namespace Learner
             (-m * std::log(q + epsilon) - (1.0 - m) * std::log(1.0 - q + epsilon));
         entropy.entropy =
             (-m * std::log(m + epsilon) - (1.0 - m) * std::log(1.0 - m + epsilon));
+
+        entropy.count = 1;
 
         return entropy;
     }
@@ -1023,35 +1040,18 @@ namespace Learner
         // entropy in the world of machine learning,
         // When omitting the acronym, it is nice to be able to
         // distinguish it from test cross entropy(tce) by writing it as lce.
-        int done = 1;
-        if (psv.size() && done)
+        if (psv.size() && test_entropy_sum.count > 0.0)
         {
-            cout << "INFO: "
-                << "test_cross_entropy_eval = " << test_entropy_sum.cross_entropy_eval / psv.size()
-                << " , test_cross_entropy_win = " << test_entropy_sum.cross_entropy_win / psv.size()
-                << " , test_entropy_eval = " << test_entropy_sum.entropy_eval / psv.size()
-                << " , test_entropy_win = " << test_entropy_sum.entropy_win / psv.size()
-                << " , test_cross_entropy = " << test_entropy_sum.cross_entropy / psv.size()
-                << " , test_entropy = " << test_entropy_sum.entropy / psv.size()
-                << " , norm = " << sum_norm
-                << " , move accuracy = " << (move_accord_count * 100.0 / psv.size()) << "%"
-                << endl;
+            test_entropy_sum.print(cout);
 
-            if (done != static_cast<uint64_t>(-1))
+            if (learn_entropy_sum.count > 0.0)
             {
-                cout << "INFO: "
-                    << "learn_cross_entropy_eval = " << learn_entropy_sum.cross_entropy_eval / done
-                    << " , learn_cross_entropy_win = " << learn_entropy_sum.cross_entropy_win / done
-                    << " , learn_entropy_eval = " << learn_entropy_sum.entropy_eval / done
-                    << " , learn_entropy_win = " << learn_entropy_sum.entropy_win / done
-                    << " , learn_cross_entropy = " << learn_entropy_sum.cross_entropy / done
-                    << " , learn_entropy = " << learn_entropy_sum.entropy / done
-                    << endl;
+                learn_entropy_sum.print(cout);
             }
         }
         else
         {
-            cout << "Error! : sr.sfen_for_mse.size() = " << sr.sfen_for_mse.size() << " ,  done = " << done << endl;
+            cout << "Error! : sr.sfen_for_mse.size() = " << sr.sfen_for_mse.size() << " ,  done = " << test_entropy_sum.count << endl;
         }
 
         // Clear 0 for next time.
