@@ -611,7 +611,12 @@ namespace Learner
 
     void LearnerThink::update_weights(const PSVector& psv)
     {
+        // I'm not sure this fencing is correct. But either way there
+        // should be no real issues happening since
+        // the read/write phases are isolated.
+        atomic_thread_fence(memory_order_seq_cst);
         Eval::NNUE::update_parameters();
+        atomic_thread_fence(memory_order_seq_cst);
 
         ++epoch;
 
