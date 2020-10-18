@@ -314,9 +314,7 @@ namespace Learner
         {
             packed_sfens.resize(thread_num);
             total_read = 0;
-            total_done = 0;
             last_done = 0;
-            next_update_weights = 0;
             save_count = 0;
             end_of_files = false;
             no_shuffle = false;
@@ -565,14 +563,8 @@ namespace Learner
         // number of phases read (file to memory buffer)
         atomic<uint64_t> total_read;
 
-        // number of processed phases
-        atomic<uint64_t> total_done;
-
         // number of cases processed so far
         uint64_t last_done;
-
-        // If total_read exceeds this value, update_weights() and calculate mse.
-        std::atomic<uint64_t> next_update_weights;
 
         uint64_t save_count;
 
@@ -639,11 +631,13 @@ namespace Learner
             best_loss = std::numeric_limits<double>::infinity();
             latest_loss_sum = 0.0;
             latest_loss_count = 0;
+            total_done = 0;
+            next_update_weights = 0;
         }
 
         void thread_worker();
 
-        void learn_task(Thread& th);
+        void learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
         void calc_loss_task(
             Thread& th,
             std::atomic<int>& counter,
@@ -680,6 +674,9 @@ namespace Learner
         uint64_t mini_batch_size = LEARN_MINI_BATCH_SIZE;
 
         std::atomic<bool> stop_flag, error_flag;
+
+        uint64_t total_done;
+        uint64_t next_update_weights;
 
         // Option to exclude early stage from learning
         int reduction_gameply;
@@ -745,22 +742,16 @@ namespace Learner
         return shallow_value;
     }
 
-    void LearnerThink::learn_task(Thread& th)
+    void LearnerThink::learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit)
     {
         const auto thread_id = th.thread_idx();
         auto& pos = th.rootPos;
 
-        while (true)
+        for(;;)
         {
-            // display mse (this is sometimes done only for thread 0)
-            // Immediately after being read from the file...
-
-            // Lock the evaluation function so that it is not used during updating.
-            if (sr.next_update_weights <= sr.total_done)
-            {
-                stop_flag = true;
+            const auto iter = counter.fetch_add(1);
+            if (iter >= limit)
                 break;
-            }
 
             PackedSfenValue ps;
 
@@ -877,9 +868,6 @@ namespace Learner
                 learn_sum_entropy += learn_entropy;
 
                 Eval::NNUE::add_example(pos, rootColor, ps, 1.0);
-
-                // Since the processing is completed, the counter of the processed number is incremented
-                sr.total_done++;
             };
 
             bool illegal_move = false;
@@ -918,9 +906,9 @@ namespace Learner
         // Only thread_id == 0 performs the following update process.
 
         // The weight array is not updated for the first time.
-        if (sr.next_update_weights == 0)
+        if (next_update_weights == 0)
         {
-            sr.next_update_weights += mini_batch_size;
+            next_update_weights += mini_batch_size;
             return;
         }
 
@@ -958,21 +946,15 @@ namespace Learner
         {
             loss_output_count = 0;
 
-            // Number of cases processed this time
-            uint64_t done = sr.total_done - sr.last_done;
-
             // loss calculation
             calc_loss_par2();
 
             Eval::NNUE::check_health();
-
-            // Make a note of how far you have totaled.
-            sr.last_done = sr.total_done;
         }
 
         // Next time, I want you to do this series of
         // processing again when you process only mini_batch_size.
-        sr.next_update_weights += mini_batch_size;
+        next_update_weights += mini_batch_size;
 
         // Since I was waiting for the update of this
         // sr.next_update_weights except the main thread,
@@ -988,8 +970,8 @@ namespace Learner
         TimePoint elapsed = now() - Search::Limits.startTime + 1;
 
         cout << "PROGRESS: " << now_string() << ", ";
-        cout << sr.total_done << " sfens, ";
-        cout << sr.total_done * 1000 / elapsed  << " sfens/second";
+        cout << total_done << " sfens, ";
+        cout << total_done * 1000 / elapsed  << " sfens/second";
         cout << ", iteration " << epoch;
         cout << ", learning rate = " << global_learning_rate << ", ";
 
@@ -1202,9 +1184,12 @@ namespace Learner
             error_flag = false;
             stop_flag = false;
             std::cout << "learn tasks:\n";
-            Threads.execute_parallel([this](auto& th){
-                learn_task(th);
+            std::atomic<uint64_t> counter{total_done};
+            uint64_t limit = next_update_weights;
+            Threads.execute_parallel([this, &counter, limit](auto& th){
+                learn_task(th, counter, limit);
             });
+            total_done = next_update_weights;
             std::cout << "wait for learn tasks:\n";
             Threads.wait_for_tasks_finished();
             if (error_flag)
@@ -1247,7 +1232,7 @@ namespace Learner
                 latest_loss_sum = 0.0;
                 latest_loss_count = 0;
                 cout << "loss: " << latest_loss;
-                auto tot = sr.total_done.load();
+                auto tot = total_done;
                 if (auto_lr_drop)
                 {
                     cout << " < best (" << best_loss << "), accepted" << endl;
