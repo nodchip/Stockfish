@@ -649,9 +649,9 @@ namespace Learner
         static constexpr uint64_t sfen_for_mse_size = 2000;
 
         LearnerThink(uint64_t thread_num, const std::string& seed) :
-            sr(thread_num, seed),
-            learn_entropy_sum{},
-            prng(seed)
+            prng(seed),
+            sr(thread_num, std::to_string(prng.next_random_seed())),
+            learn_entropy_sum{}
         {
             save_only_once = false;
             save_count = 0;
@@ -724,6 +724,8 @@ namespace Learner
         // save merit function parameters to a file
         bool save(bool is_final = false);
 
+        PRNG prng;
+
         // sfen reader
         SfenReader sr;
 
@@ -743,8 +745,6 @@ namespace Learner
 
         // For calculation of learning data loss
         AtomicEntropy learn_entropy_sum;
-
-        PRNG prng;
     };
 
     void LearnerThink::learn()
