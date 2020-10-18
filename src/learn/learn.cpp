@@ -126,16 +126,16 @@ namespace Learner
             return *this;
         }
 
-        void print(ostream& s) const
+        void print(const std::string& prefix, ostream& s) const
         {
             s
                 << "INFO: "
-                << "learn_cross_entropy_eval = " << cross_entropy_eval / count
-                << " , learn_cross_entropy_win = " << cross_entropy_win / count
-                << " , learn_entropy_eval = " << entropy_eval / count
-                << " , learn_entropy_win = " << entropy_win / count
-                << " , learn_cross_entropy = " << cross_entropy / count
-                << " , learn_entropy = " << entropy / count
+                << prefix << "_cross_entropy_eval = " << cross_entropy_eval / count
+                << " , " << prefix << "_cross_entropy_win = " << cross_entropy_win / count
+                << " , " << prefix << "_entropy_eval = " << entropy_eval / count
+                << " , " << prefix << "_entropy_win = " << entropy_win / count
+                << " , " << prefix << "_cross_entropy = " << cross_entropy / count
+                << " , " << prefix << "_entropy = " << entropy / count
                 << endl;
         }
     };
@@ -1043,11 +1043,11 @@ namespace Learner
                 << " , move accuracy = " << (move_accord_count * 100.0 / psv.size()) << "%"
                 << endl;
 
-            test_entropy_sum.print(cout);
+            test_entropy_sum.print("test", cout);
 
             if (learn_entropy_sum.count > 0.0)
             {
-                learn_entropy_sum.print(cout);
+                learn_entropy_sum.print("learn", cout);
             }
         }
         else
