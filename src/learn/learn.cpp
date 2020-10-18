@@ -314,8 +314,6 @@ namespace Learner
         {
             packed_sfens.resize(thread_num);
             total_read = 0;
-            last_done = 0;
-            save_count = 0;
             end_of_files = false;
             no_shuffle = false;
             stop_flag = false;
@@ -563,11 +561,6 @@ namespace Learner
         // number of phases read (file to memory buffer)
         atomic<uint64_t> total_read;
 
-        // number of cases processed so far
-        uint64_t last_done;
-
-        uint64_t save_count;
-
         // Do not shuffle when reading the phase.
         bool no_shuffle;
 
@@ -624,6 +617,7 @@ namespace Learner
             learn_sum_entropy_win = 0.0;
             learn_sum_entropy = 0.0;
 
+            save_count = 0;
             newbob_decay = 1.0;
             newbob_num_trials = 2;
             auto_lr_drop = 0;
@@ -663,6 +657,8 @@ namespace Learner
 
         // save merit function parameters to a file
         bool save(bool is_final = false);
+
+        uint64_t save_count;
 
         // sfen reader
         SfenReader& sr;
@@ -923,9 +919,9 @@ namespace Learner
         ++epoch;
 
         // However, the elapsed time during update_weights() and calc_rmse() is ignored.
-        if (++sr.save_count * mini_batch_size >= eval_save_interval)
+        if (++save_count * mini_batch_size >= eval_save_interval)
         {
-            sr.save_count = 0;
+            save_count = 0;
 
             // During this time, as the gradient calculation proceeds,
             // the value becomes too large and I feel annoyed, so stop other threads.
