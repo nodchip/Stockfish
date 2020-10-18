@@ -655,7 +655,6 @@ namespace Learner
     {
         LearnerThink(SfenReader& sr_, const std::string& seed) :
             sr(sr_),
-            stop_flag(false),
             save_only_once(false),
             learn_entropy_sum{},
             prng(seed)
@@ -669,7 +668,6 @@ namespace Learner
             latest_loss_sum = 0.0;
             latest_loss_count = 0;
             total_done = 0;
-            next_update_weights = 0;
         }
 
         void learn();
@@ -687,10 +685,9 @@ namespace Learner
         // Mini batch size size. Be sure to set it on the side that uses this class.
         uint64_t mini_batch_size = LEARN_MINI_BATCH_SIZE;
 
-        std::atomic<bool> stop_flag, error_flag;
+        std::atomic<bool> stop_flag;
 
         uint64_t total_done;
-        uint64_t next_update_weights;
 
         // Option to exclude early stage from learning
         int reduction_gameply;
@@ -708,7 +705,6 @@ namespace Learner
         // For calculation of learning data loss
         AtomicEntropy learn_entropy_sum;
 
-        shared_timed_mutex nn_mutex;
         double newbob_decay;
         int newbob_num_trials;
         uint64_t auto_lr_drop;
@@ -774,7 +770,7 @@ namespace Learner
         const auto thread_id = th.thread_idx();
         auto& pos = th.rootPos;
 
-        for(;;)
+        while(!stop_flag)
         {
             const auto iter = counter.fetch_add(1);
             if (iter >= limit)
@@ -790,7 +786,6 @@ namespace Learner
                 // Because there are almost no phases left,
                 // Terminate all other threads.
 
-                error_flag = true;
                 stop_flag = true;
                 break;
             }
@@ -920,19 +915,8 @@ namespace Learner
         // Only thread_id == 0 performs the following update process.
 
         // The weight array is not updated for the first time.
-        if (next_update_weights == 0)
-        {
-            next_update_weights += mini_batch_size;
-            return;
-        }
-
-        {
-            // update parameters
-
-            // Lock the evaluation function so that it is not used during updating.
-            lock_guard<shared_timed_mutex> write_lock(nn_mutex);
-            Eval::NNUE::update_parameters();
-        }
+        // update parameters
+        Eval::NNUE::update_parameters();
 
         ++epoch;
 
@@ -946,9 +930,7 @@ namespace Learner
             const bool converged = save();
             if (converged)
             {
-                error_flag = true;
                 stop_flag = true;
-                sr.stop_flag = true;
                 return;
             }
         }
@@ -965,14 +947,6 @@ namespace Learner
 
             Eval::NNUE::check_health();
         }
-
-        // Next time, I want you to do this series of
-        // processing again when you process only mini_batch_size.
-        next_update_weights += mini_batch_size;
-
-        // Since I was waiting for the update of this
-        // sr.next_update_weights except the main thread,
-        // Once this value is updated, it will start moving again.
     }
 
     void LearnerThink::calc_loss(const PSVector& psv)
@@ -1015,7 +989,6 @@ namespace Learner
         // The number of tasks to do.
         atomic<uint64_t> counter{0};
 
-        std::cout << "calc tasks actual:\n";
         Threads.execute_parallel([&](auto& th){
             calc_loss_task(
                 th,
@@ -1026,7 +999,6 @@ namespace Learner
                 move_accord_count
             );
         });
-        std::cout << "wait for calc tasks actual:\n";
         Threads.wait_for_tasks_finished();
 
 
@@ -1149,28 +1121,28 @@ namespace Learner
             cout << "initial loss: " << best_loss << endl;
         }
 
-        while(true)
+        for(;;)
         {
-            error_flag = false;
             stop_flag = false;
-            std::cout << "learn tasks:\n";
-            std::atomic<uint64_t> counter{total_done};
-            uint64_t limit = next_update_weights;
-            Threads.execute_parallel([this, &counter, limit](auto& th){
-                learn_task(th, counter, limit);
+
+            std::atomic<uint64_t> counter{0};
+
+            Threads.execute_parallel([this, &counter](auto& th){
+                learn_task(th, counter, mini_batch_size);
             });
-            total_done = next_update_weights;
-            std::cout << "wait for learn tasks:\n";
+
+            total_done += mini_batch_size;
+
             Threads.wait_for_tasks_finished();
-            if (error_flag)
+            if (stop_flag)
                 break;
 
-            stop_flag = false;
-            std::cout << "calc tasks:\n";
             update_weights();
-            if (error_flag)
+            if (stop_flag)
                 break;
         }
+
+        sr.stop_flag = true;
 
         Eval::NNUE::finalize_net();
 
