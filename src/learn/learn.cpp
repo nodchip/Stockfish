@@ -94,6 +94,40 @@ namespace Learner
     // Using stockfish's WDL with win rate model instead of sigmoid
     static bool use_wdl = false;
 
+    template <bool AtomicV>
+    struct EntropyTemplate
+    {
+        using T =
+            std::conditional_t<
+                AtomicV,
+                atomic<double>,
+                double
+            >;
+
+        T cross_entropy_eval{0.0};
+        T cross_entropy_win{0.0};
+        T cross_entropy{0.0};
+        T entropy_eval{0.0};
+        T entropy_win{0.0};
+        T entropy{0.0};
+
+        template <bool OtherAtomicV>
+        EntropyTemplate& operator += (const EntropyTemplate<OtherAtomicV>& rhs)
+        {
+            cross_entropy_eval += rhs.cross_entropy_eval;
+            cross_entropy_win += rhs.cross_entropy_win;
+            cross_entropy += rhs.cross_entropy;
+            entropy_eval += rhs.entropy_eval;
+            entropy_win += rhs.entropy_win;
+            entropy += rhs.entropy;
+
+            return *this;
+        }
+    };
+
+    using Entropy = EntropyTemplate<false>;
+    using AtomicEntropy = EntropyTemplate<false>;
+
     // A function that converts the evaluation value to the winning rate [0,1]
     double winning_percentage(double value)
     {
@@ -242,16 +276,10 @@ namespace Learner
     // The individual cross entropy of the win/loss term and win
     // rate term of the elmo expression is returned
     // to the arguments cross_entropy_eval and cross_entropy_win.
-    void calc_cross_entropy(
+    Entropy calc_cross_entropy(
         Value teacher_signal,
         Value shallow,
-        const PackedSfenValue& psv,
-        double& cross_entropy_eval,
-        double& cross_entropy_win,
-        double& cross_entropy,
-        double& entropy_eval,
-        double& entropy_win,
-        double& entropy)
+        const PackedSfenValue& psv)
     {
         // Teacher winning probability.
         const double q = winning_percentage(shallow, psv.gamePly);
@@ -263,19 +291,23 @@ namespace Learner
 
         const double m = (1.0 - lambda) * t + lambda * p;
 
-        cross_entropy_eval =
+        Entropy entropy{};
+
+        entropy.cross_entropy_eval =
             (-p * std::log(q + epsilon) - (1.0 - p) * std::log(1.0 - q + epsilon));
-        cross_entropy_win =
+        entropy.cross_entropy_win =
             (-t * std::log(q + epsilon) - (1.0 - t) * std::log(1.0 - q + epsilon));
-        entropy_eval =
+        entropy.entropy_eval =
             (-p * std::log(p + epsilon) - (1.0 - p) * std::log(1.0 - p + epsilon));
-        entropy_win =
+        entropy.entropy_win =
             (-t * std::log(t + epsilon) - (1.0 - t) * std::log(1.0 - t + epsilon));
 
-        cross_entropy =
+        entropy.cross_entropy =
             (-m * std::log(q + epsilon) - (1.0 - m) * std::log(1.0 - q + epsilon));
-        entropy =
+        entropy.entropy =
             (-m * std::log(m + epsilon) - (1.0 - m) * std::log(1.0 - m + epsilon));
+
+        return entropy;
     }
 
     // Other objective functions may be considered in the future...
@@ -608,15 +640,9 @@ namespace Learner
             sr(sr_),
             stop_flag(false),
             save_only_once(false),
+            learn_entropy_sum{},
             prng(seed)
         {
-            learn_sum_cross_entropy_eval = 0.0;
-            learn_sum_cross_entropy_win = 0.0;
-            learn_sum_cross_entropy = 0.0;
-            learn_sum_entropy_eval = 0.0;
-            learn_sum_entropy_win = 0.0;
-            learn_sum_entropy = 0.0;
-
             save_count = 0;
             newbob_decay = 1.0;
             newbob_num_trials = 2;
@@ -635,12 +661,7 @@ namespace Learner
         void calc_loss_task(
             Thread& th,
             std::atomic<int>& counter,
-            atomic<double>& test_sum_cross_entropy_eval,
-            atomic<double>& test_sum_cross_entropy_win,
-            atomic<double>& test_sum_cross_entropy,
-            atomic<double>& test_sum_entropy_eval,
-            atomic<double>& test_sum_entropy_win,
-            atomic<double>& test_sum_entropy,
+            AtomicEntropy& test_entropy_sum,
             atomic<double>& sum_norm,
             atomic<int>& move_accord_count
         );
@@ -688,12 +709,7 @@ namespace Learner
         // --- loss calculation
 
         // For calculation of learning data loss
-        atomic<double> learn_sum_cross_entropy_eval;
-        atomic<double> learn_sum_cross_entropy_win;
-        atomic<double> learn_sum_cross_entropy;
-        atomic<double> learn_sum_entropy_eval;
-        atomic<double> learn_sum_entropy_win;
-        atomic<double> learn_sum_entropy;
+        AtomicEntropy learn_entropy_sum;
 
         shared_timed_mutex nn_mutex;
         double newbob_decay;
@@ -843,25 +859,12 @@ namespace Learner
                     : -Eval::evaluate(pos);
 
                 // Calculate loss for training data
-                double learn_cross_entropy_eval, learn_cross_entropy_win, learn_cross_entropy;
-                double learn_entropy_eval, learn_entropy_win, learn_entropy;
-                calc_cross_entropy(
+                const auto entropy = calc_cross_entropy(
                     deep_value,
                     shallow_value,
-                    ps,
-                    learn_cross_entropy_eval,
-                    learn_cross_entropy_win,
-                    learn_cross_entropy,
-                    learn_entropy_eval,
-                    learn_entropy_win,
-                    learn_entropy);
+                    ps);
 
-                learn_sum_cross_entropy_eval += learn_cross_entropy_eval;
-                learn_sum_cross_entropy_win += learn_cross_entropy_win;
-                learn_sum_cross_entropy += learn_cross_entropy;
-                learn_sum_entropy_eval += learn_entropy_eval;
-                learn_sum_entropy_win += learn_entropy_win;
-                learn_sum_entropy += learn_entropy;
+                learn_entropy_sum += entropy;
 
                 Eval::NNUE::add_example(pos, rootColor, ps, 1.0);
             };
@@ -972,24 +975,14 @@ namespace Learner
         cout << ", learning rate = " << global_learning_rate << ", ";
 
         // For calculation of verification data loss
-        atomic<double> test_sum_cross_entropy_eval, test_sum_cross_entropy_win, test_sum_cross_entropy;
-        atomic<double> test_sum_entropy_eval, test_sum_entropy_win, test_sum_entropy;
-        test_sum_cross_entropy_eval = 0;
-        test_sum_cross_entropy_win = 0;
-        test_sum_cross_entropy = 0;
-        test_sum_entropy_eval = 0;
-        test_sum_entropy_win = 0;
-        test_sum_entropy = 0;
+        AtomicEntropy test_entropy_sum{};
 
         // norm for learning
-        atomic<double> sum_norm;
-        sum_norm = 0;
+        atomic<double> sum_norm{0.0};
 
         // The number of times the pv first move of deep
         // search matches the pv first move of search(1).
-        atomic<int> move_accord_count;
-        move_accord_count = 0;
-
+        atomic<int> move_accord_count{0};
 
         auto th = Threads.main();
         th->execute_task([](auto& th){
@@ -1014,12 +1007,7 @@ namespace Learner
             calc_loss_task(
                 th,
                 task_count,
-                test_sum_cross_entropy_eval,
-                test_sum_cross_entropy_win,
-                test_sum_cross_entropy,
-                test_sum_entropy_eval,
-                test_sum_entropy_win,
-                test_sum_entropy,
+                test_entropy_sum,
                 sum_norm,
                 move_accord_count
             );
@@ -1028,7 +1016,7 @@ namespace Learner
         Threads.wait_for_tasks_finished();
 
 
-        latest_loss_sum += test_sum_cross_entropy - test_sum_entropy;
+        latest_loss_sum += test_entropy_sum.cross_entropy - test_entropy_sum.entropy;
         latest_loss_count += sr.sfen_for_mse.size();
 
         // learn_cross_entropy may be called train cross
@@ -1039,12 +1027,12 @@ namespace Learner
         if (sr.sfen_for_mse.size() && done)
         {
             cout << "INFO: "
-                << "test_cross_entropy_eval = " << test_sum_cross_entropy_eval / sr.sfen_for_mse.size()
-                << " , test_cross_entropy_win = " << test_sum_cross_entropy_win / sr.sfen_for_mse.size()
-                << " , test_entropy_eval = " << test_sum_entropy_eval / sr.sfen_for_mse.size()
-                << " , test_entropy_win = " << test_sum_entropy_win / sr.sfen_for_mse.size()
-                << " , test_cross_entropy = " << test_sum_cross_entropy / sr.sfen_for_mse.size()
-                << " , test_entropy = " << test_sum_entropy / sr.sfen_for_mse.size()
+                << "test_cross_entropy_eval = " << test_entropy_sum.cross_entropy_eval / sr.sfen_for_mse.size()
+                << " , test_cross_entropy_win = " << test_entropy_sum.cross_entropy_win / sr.sfen_for_mse.size()
+                << " , test_entropy_eval = " << test_entropy_sum.entropy_eval / sr.sfen_for_mse.size()
+                << " , test_entropy_win = " << test_entropy_sum.entropy_win / sr.sfen_for_mse.size()
+                << " , test_cross_entropy = " << test_entropy_sum.cross_entropy / sr.sfen_for_mse.size()
+                << " , test_entropy = " << test_entropy_sum.entropy / sr.sfen_for_mse.size()
                 << " , norm = " << sum_norm
                 << " , move accuracy = " << (move_accord_count * 100.0 / sr.sfen_for_mse.size()) << "%"
                 << endl;
@@ -1052,12 +1040,12 @@ namespace Learner
             if (done != static_cast<uint64_t>(-1))
             {
                 cout << "INFO: "
-                    << "learn_cross_entropy_eval = " << learn_sum_cross_entropy_eval / done
-                    << " , learn_cross_entropy_win = " << learn_sum_cross_entropy_win / done
-                    << " , learn_entropy_eval = " << learn_sum_entropy_eval / done
-                    << " , learn_entropy_win = " << learn_sum_entropy_win / done
-                    << " , learn_cross_entropy = " << learn_sum_cross_entropy / done
-                    << " , learn_entropy = " << learn_sum_entropy / done
+                    << "learn_cross_entropy_eval = " << learn_entropy_sum.cross_entropy_eval / done
+                    << " , learn_cross_entropy_win = " << learn_entropy_sum.cross_entropy_win / done
+                    << " , learn_entropy_eval = " << learn_entropy_sum.entropy_eval / done
+                    << " , learn_entropy_win = " << learn_entropy_sum.entropy_win / done
+                    << " , learn_cross_entropy = " << learn_entropy_sum.cross_entropy / done
+                    << " , learn_entropy = " << learn_entropy_sum.entropy / done
                     << endl;
             }
         }
@@ -1067,26 +1055,15 @@ namespace Learner
         }
 
         // Clear 0 for next time.
-        learn_sum_cross_entropy_eval = 0.0;
-        learn_sum_cross_entropy_win = 0.0;
-        learn_sum_cross_entropy = 0.0;
-        learn_sum_entropy_eval = 0.0;
-        learn_sum_entropy_win = 0.0;
-        learn_sum_entropy = 0.0;
+        learn_entropy_sum = {};
     }
 
     void LearnerThink::calc_loss_task(
         Thread& th,
         std::atomic<int>& counter,
-        atomic<double>& test_sum_cross_entropy_eval,
-        atomic<double>& test_sum_cross_entropy_win,
-        atomic<double>& test_sum_cross_entropy,
-        atomic<double>& test_sum_entropy_eval,
-        atomic<double>& test_sum_entropy_win,
-        atomic<double>& test_sum_entropy,
+        AtomicEntropy& test_entropy_sum,
         atomic<double>& sum_norm,
         atomic<int>& move_accord_count
-
     )
     {
         for(;;)
@@ -1108,12 +1085,7 @@ namespace Learner
                     this,
                     &th,
                     &ps,
-                    &test_sum_cross_entropy_eval,
-                    &test_sum_cross_entropy_win,
-                    &test_sum_cross_entropy,
-                    &test_sum_entropy_eval,
-                    &test_sum_entropy_win,
-                    &test_sum_entropy,
+                    &test_entropy_sum,
                     &sum_norm,
                     &move_accord_count
                 ]()
@@ -1140,26 +1112,13 @@ namespace Learner
                 // For the time being, regarding the win rate and loss terms only in the elmo method
                 // Calculate and display the cross entropy.
 
-                double test_cross_entropy_eval, test_cross_entropy_win, test_cross_entropy;
-                double test_entropy_eval, test_entropy_win, test_entropy;
-                calc_cross_entropy(
+                const auto entropy = calc_cross_entropy(
                     deep_value,
                     shallow_value,
-                    ps,
-                    test_cross_entropy_eval,
-                    test_cross_entropy_win,
-                    test_cross_entropy,
-                    test_entropy_eval,
-                    test_entropy_win,
-                    test_entropy);
+                    ps);
 
                 // The total cross entropy need not be abs() by definition.
-                test_sum_cross_entropy_eval += test_cross_entropy_eval;
-                test_sum_cross_entropy_win += test_cross_entropy_win;
-                test_sum_cross_entropy += test_cross_entropy;
-                test_sum_entropy_eval += test_entropy_eval;
-                test_sum_entropy_win += test_entropy_win;
-                test_sum_entropy += test_entropy;
+                test_entropy_sum += entropy;
                 sum_norm += (double)abs(shallow_value);
 
                 // Determine if the teacher's move and the score of the shallow search match
