@@ -498,8 +498,8 @@ namespace Learner
                         return false;
 
                     // Get the next file name.
-                    string filename = filenames.back();
-                    filenames.pop_back();
+                    string filename = filenames.front();
+                    filenames.pop_front();
 
                     sfen_input_stream = open_sfen_input_file(filename);
                     cout << "open filename = " << filename << endl;
@@ -596,13 +596,18 @@ namespace Learner
             shuffle = v;
         }
 
-        // sfen files
-        vector<string> filenames;
+        void add_file(const std::string& filename)
+        {
+            filenames.push_back(filename);
+        }
 
     protected:
 
         // worker thread reading file in background
         std::thread file_worker_thread;
+
+        // sfen files
+        deque<string> filenames;
 
         std::atomic<bool> stop_flag;
 
@@ -643,8 +648,8 @@ namespace Learner
         // move match rate, simple comparison is not possible...
         static constexpr uint64_t sfen_for_mse_size = 2000;
 
-        LearnerThink(SfenReader& sr_, const std::string& seed) :
-            sr(sr_),
+        LearnerThink(uint64_t thread_num, const std::string& seed) :
+            sr(thread_num, seed),
             learn_entropy_sum{},
             prng(seed)
         {
@@ -663,6 +668,11 @@ namespace Learner
         void set_do_shuffle(bool v)
         {
             sr.set_do_shuffle(v);
+        }
+
+        void add_file(const std::string& filename)
+        {
+            sr.add_file(filename);
         }
 
         void learn();
@@ -714,11 +724,10 @@ namespace Learner
         // save merit function parameters to a file
         bool save(bool is_final = false);
 
+        // sfen reader
+        SfenReader sr;
 
         uint64_t save_count;
-
-        // sfen reader
-        SfenReader& sr;
 
         // Learning iteration counter
         uint64_t epoch = 0;
@@ -1701,8 +1710,7 @@ namespace Learner
         cout << "Warning! OpenMP disabled." << endl;
 #endif
 
-        SfenReader sr(thread_num, seed);
-        LearnerThink learn_think(sr, seed);
+        LearnerThink learn_think(thread_num, seed);
 
         // Display learning game file
         if (target_dir != "")
@@ -1801,17 +1809,6 @@ namespace Learner
         cout << "save_only_once    : " << (save_only_once ? "true" : "false") << endl;
         cout << "no_shuffle        : " << (no_shuffle ? "true" : "false") << endl;
 
-        // Insert the file name for the number of loops.
-        for (int i = 0; i < loop; ++i)
-        {
-            // sfen reader, I'll read it in reverse
-            // order so I'll reverse it here. I'm sorry.
-            for (auto it = filenames.rbegin(); it != filenames.rend(); ++it)
-            {
-                sr.filenames.push_back(Path::combine(base_dir, *it));
-            }
-        }
-
         cout << "Loss Function     : " << LOSS_FUNCTION << endl;
         cout << "mini-batch size   : " << mini_batch_size << endl;
 
@@ -1882,6 +1879,15 @@ namespace Learner
 
         learn_think.mini_batch_size = mini_batch_size;
         learn_think.validation_set_file_name = validation_set_file_name;
+
+        // Insert the file name for the number of loops.
+        for (int i = 0; i < loop; ++i)
+        {
+            for(auto& file : filenames)
+            {
+                learn_think.add_file(Path::combine(base_dir, file));
+            }
+        }
 
         // Start learning.
         learn_think.learn();
