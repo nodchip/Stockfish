@@ -1140,6 +1140,15 @@ namespace Learner
 #if defined(_OPENMP)
         omp_set_num_threads((int)Options["Threads"]);
 #endif
+
+        if (newbob_decay != 1.0) {
+            calc_loss(sr.sfen_for_mse);
+            best_loss = latest_loss_sum / latest_loss_count;
+            latest_loss_sum = 0.0;
+            latest_loss_count = 0;
+            cout << "initial loss: " << best_loss << endl;
+        }
+
         while(true)
         {
             error_flag = false;
@@ -1898,21 +1907,6 @@ namespace Learner
 
         learn_think.mini_batch_size = mini_batch_size;
         learn_think.validation_set_file_name = validation_set_file_name;
-
-        // Calculate rmse once at this point (timing of 0 sfen)
-        // sr.calc_rmse();
-        /*
-        if (newbob_decay != 1.0) {
-            learn_think.calc_loss(0, -1);
-            learn_think.best_loss = learn_think.latest_loss_sum / learn_think.latest_loss_count;
-            learn_think.latest_loss_sum = 0.0;
-            learn_think.latest_loss_count = 0;
-            cout << "initial loss: " << learn_think.best_loss << endl;
-        }
-        */
-        // -----------------------------------
-        // start learning evaluation function parameters
-        // -----------------------------------
 
         // Start learning.
         learn_think.learn();
