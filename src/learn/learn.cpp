@@ -990,11 +990,15 @@ namespace Learner
         atomic<int> move_accord_count;
         move_accord_count = 0;
 
-        auto th = Threads[0];
-        auto& pos = th->rootPos;
-        StateInfo si;
-        pos.set(StartFEN, false, &si, th);
-        cout << "startpos eval = " << Eval::evaluate(pos) << endl;
+
+        auto th = Threads.main();
+        th->execute_task([](auto& th){
+            auto& pos = th.rootPos;
+            StateInfo si;
+            pos.set(StartFEN, false, &si, &th);
+            cout << "startpos eval = " << Eval::evaluate(pos) << endl;
+        });
+        th->wait_for_task_finished();
 
         // It's better to parallelize here, but it's a bit
         // troublesome because the search before slave has not finished.
