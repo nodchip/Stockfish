@@ -672,30 +672,9 @@ namespace Learner
             next_update_weights = 0;
         }
 
-        void thread_worker();
+        void learn();
 
-        void learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
-        void calc_loss_task(
-            Thread& th,
-            std::atomic<uint64_t>& counter,
-            const PSVector& psv,
-            AtomicEntropy& test_entropy_sum,
-            atomic<double>& sum_norm,
-            atomic<int>& move_accord_count
-        );
-        void calc_loss_par();
-        void calc_loss_par2(const PSVector& psv);
-
-        // Start a thread that loads the phase file in the background.
-        void start_file_read_worker()
-        {
-            sr.start_file_read_worker();
-        }
-
-        Value get_shallow_value(Position& task_pos);
-
-        // save merit function parameters to a file
-        bool save(bool is_final = false);
+        std::string validation_set_file_name;
 
         uint64_t save_count;
 
@@ -743,6 +722,24 @@ namespace Learner
         uint64_t loss_output_interval;
 
         PRNG prng;
+
+    private:
+        void learn_task(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
+        void calc_loss_task(
+            Thread& th,
+            std::atomic<uint64_t>& counter,
+            const PSVector& psv,
+            AtomicEntropy& test_entropy_sum,
+            atomic<double>& sum_norm,
+            atomic<int>& move_accord_count
+        );
+        void update_weights();
+        void calc_loss(const PSVector& psv);
+
+        Value get_shallow_value(Position& task_pos);
+
+        // save merit function parameters to a file
+        bool save(bool is_final = false);
     };
 
     Value LearnerThink::get_shallow_value(Position& task_pos)
@@ -913,7 +910,7 @@ namespace Learner
         }
     }
 
-    void LearnerThink::calc_loss_par()
+    void LearnerThink::update_weights()
     {
         // display mse (this is sometimes done only for thread 0)
         // Immediately after being read from the file...
@@ -964,7 +961,7 @@ namespace Learner
             loss_output_count = 0;
 
             // loss calculation
-            calc_loss_par2(sr.sfen_for_mse);
+            calc_loss(sr.sfen_for_mse);
 
             Eval::NNUE::check_health();
         }
@@ -978,7 +975,7 @@ namespace Learner
         // Once this value is updated, it will start moving again.
     }
 
-    void LearnerThink::calc_loss_par2(const PSVector& psv)
+    void LearnerThink::calc_loss(const PSVector& psv)
     {
         // There is no point in hitting the replacement table,
         // so at this timing the generation of the replacement table is updated.
@@ -1123,8 +1120,23 @@ namespace Learner
         }
     }
 
-    void LearnerThink::thread_worker()
+    void LearnerThink::learn()
     {
+        Eval::NNUE::verify_any_net_loaded();
+
+        // Start a thread that loads the phase file in the background
+        // (If this is not started, mse cannot be calculated.)
+        sr.start_file_read_worker();
+        if (validation_set_file_name.empty())
+        {
+            // Get about 10,000 data for mse calculation.
+            sr.read_for_mse();
+        }
+        else
+        {
+            sr.read_validation_set(validation_set_file_name, eval_limit);
+        }
+
 #if defined(_OPENMP)
         omp_set_num_threads((int)Options["Threads"]);
 #endif
@@ -1146,10 +1158,15 @@ namespace Learner
 
             stop_flag = false;
             std::cout << "calc tasks:\n";
-            calc_loss_par();
+            update_weights();
             if (error_flag)
                 break;
         }
+
+        Eval::NNUE::finalize_net();
+
+        // Save once at the end.
+        save(true);
     }
 
     // Write evaluation function file.
@@ -1673,6 +1690,7 @@ namespace Learner
             else if (option == "seed") is >> seed;
             else if (option == "set_recommended_uci_options")
             {
+                UCI::setoption("Use NNUE", "pure");
                 UCI::setoption("MultiPV", "1");
                 UCI::setoption("Contempt", "0");
                 UCI::setoption("Skill Level", "20");
@@ -1878,26 +1896,8 @@ namespace Learner
         learn_think.eval_save_interval = eval_save_interval;
         learn_think.loss_output_interval = loss_output_interval;
 
-        // Start a thread that loads the phase file in the background
-        // (If this is not started, mse cannot be calculated.)
-        learn_think.start_file_read_worker();
-
         learn_think.mini_batch_size = mini_batch_size;
-
-        if (validation_set_file_name.empty())
-        {
-            // Get about 10,000 data for mse calculation.
-            sr.read_for_mse();
-        }
-        else
-        {
-            sr.read_validation_set(validation_set_file_name, eval_limit);
-        }
-
-        cout << "Forcing Use NNUE pure.\n";
-        UCI::setoption("Use NNUE", "pure");
-
-        Eval::NNUE::verify_any_net_loaded();
+        learn_think.validation_set_file_name = validation_set_file_name;
 
         // Calculate rmse once at this point (timing of 0 sfen)
         // sr.calc_rmse();
@@ -1915,12 +1915,7 @@ namespace Learner
         // -----------------------------------
 
         // Start learning.
-        learn_think.thread_worker();
-
-        Eval::NNUE::finalize_net();
-
-        // Save once at the end.
-        learn_think.save(true);
+        learn_think.learn();
     }
 
 } // namespace Learner
