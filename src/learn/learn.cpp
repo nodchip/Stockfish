@@ -372,23 +372,16 @@ namespace Learner
         // Load the phase for calculation such as mse.
         void read_for_mse()
         {
-            auto th = Threads.main();
-            Position& pos = th->rootPos;
             for (uint64_t i = 0; i < sfen_for_mse_size; ++i)
             {
                 PackedSfenValue ps;
                 if (!read_to_thread_buffer(0, ps))
                 {
                     cout << "Error! read packed sfen , failed." << endl;
-                    break;
+                    return;
                 }
 
                 sfen_for_mse.push_back(ps);
-
-                // Get the hash key.
-                StateInfo si;
-                pos.set_from_packed_sfen(ps.sfen, &si, th);
-                sfen_for_mse_hash.insert(pos.key());
             }
         }
 
@@ -590,13 +583,6 @@ namespace Learner
             }
         }
 
-        // Determine if it is a phase for calculating rmse.
-        // (The computational aspects of rmse should not be used for learning.)
-        bool is_for_rmse(Key key) const
-        {
-            return sfen_for_mse_hash.count(key) != 0;
-        }
-
         void stop()
         {
             stop_flag = true;
@@ -651,9 +637,6 @@ namespace Learner
         // Each worker thread fills its own packed_sfens[thread_id] from here.
         // * Lock and access the mutex.
         std::list<std::unique_ptr<PSVector>> packed_sfens_pool;
-
-        // Hold the hash key so that the mse calculation phase is not used for learning.
-        std::unordered_set<Key> sfen_for_mse_hash;
     };
 
     // Class to generate sfen with multiple threads
