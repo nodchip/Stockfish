@@ -127,6 +127,17 @@ namespace Learner
             return *this;
         }
 
+        void reset()
+        {
+            cross_entropy_eval = 0.0;
+            cross_entropy_win = 0.0;
+            cross_entropy = 0.0;
+            entropy_eval = 0.0;
+            entropy_win = 0.0;
+            entropy = 0.0;
+            count = 0.0;
+        }
+
         void print(const std::string& prefix, ostream& s) const
         {
             s
@@ -142,7 +153,7 @@ namespace Learner
     };
 
     using Entropy = EntropyTemplate<false>;
-    using AtomicEntropy = EntropyTemplate<false>;
+    using AtomicEntropy = EntropyTemplate<true>;
 
     // A function that converts the evaluation value to the winning rate [0,1]
     double winning_percentage(double value)
@@ -708,7 +719,7 @@ namespace Learner
             cout << "Error! : psv.size() = " << psv.size() << " ,  done = " << test_entropy_sum.count << endl;
         }
 
-        learn_entropy_sum = {};
+        learn_entropy_sum.reset();
     }
 
     void LearnerThink::calc_loss_worker(
