@@ -54,6 +54,8 @@ Currently the following options are available:
 
 `reduction_gameply` - the minimum ply after which positions won't be skipped. Positions at plies below this value are skipped with a probability that lessens linearly with the ply (reaching 0 at `reduction_gameply`). Default: 1.
 
+`eval_smoothing` - the eval from training data is averaged over that many plies within a game. Default: 1.
+
 `eval_limit` - positions with absolute evaluation higher than this will be skipped. Default: 32000 (nothing is skipped).
 
 `save_only_once` - this is a modifier not a parameter, no value follows it. If specified then there will be only one network file generated.
