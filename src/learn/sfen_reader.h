@@ -45,12 +45,14 @@ namespace Learner{
             int thread_num,
             const std::string& seed,
             size_t read_size = DEFAULT_SFEN_READ_SIZE,
-            size_t buffer_size = DEFAULT_THREAD_BUFFER_SIZE
+            size_t buffer_size = DEFAULT_THREAD_BUFFER_SIZE,
+            size_t smoothing = 1
         ) :
             filenames(filenames_.begin(), filenames_.end()),
             mode(mode_),
             sfen_read_size(read_size),
             thread_buffer_size(buffer_size),
+            eval_smoothing(smoothing),
             prng(seed)
         {
             packed_sfens.resize(thread_num);
@@ -249,10 +251,52 @@ namespace Learner{
                 if (stop_flag)
                     return;
 
+                using PSVectorIter = typename PSVector::iterator;
+
                 PSVector sfens;
                 sfens.reserve(sfen_read_size);
 
+                // Iterators must satisfy RandomAccessIterator
+                auto smoothen_evals_in_range = [this](PSVectorIter begin, PSVectorIter end) {
+                    // We can assume here that we have a continuous game, so the
+                    // sides change after each move. This just has to be consistent
+                    // in flipping and for a given iterator, the exact value doesn't matter.
+                    auto sign = [begin](PSVectorIter it) {
+                        return (it - begin) & 1 ? 1 : -1;
+                    };
+
+                    int64_t score_sum = 0;
+                    int64_t score_num = 0;
+                    while (begin != end)
+                    {
+                        if (score_num >= (int64_t)eval_smoothing)
+                        {
+                            auto last_score_it = begin - eval_smoothing;
+                            score_sum -= last_score_it->score * sign(last_score_it);
+                            score_num -= 1;
+                        }
+
+                        score_sum += begin->score * sign(begin);
+                        score_num += 1;
+
+                        begin->score = score_sum / score_num * sign(begin);
+
+                        ++begin;
+                    }
+                };
+
+                auto on_full_game_read = [this, smoothen_evals_in_range](PSVectorIter begin, PSVectorIter end) {
+                    if (eval_smoothing > 1)
+                    {
+                        smoothen_evals_in_range(begin, end);
+                    }
+                };
+
                 // Read from the file into the file buffer.
+                // It's important that we preallocate so that the iterators
+                // are not invalidated on push_back.
+                PSVectorIter game_start_iter;
+                int prev_ply = -1;
                 while (sfens.size() < sfen_read_size)
                 {
                     std::optional<PackedSfenValue> p = sfen_input_stream->next();
@@ -260,6 +304,36 @@ namespace Learner{
                     {
                         sfens.push_back(*p);
                         ++numEntriesReadFromCurrentFile;
+
+                        if (sfens.size() == 1)
+                        {
+                            // We added the first position. Initialize game start.
+                            game_start_iter = sfens.begin();
+                            prev_ply = game_start_iter->gamePly;
+                        }
+                        else
+                        {
+                            // We added a subsequent position. Check if it belongs to
+                            // the previous game or create a new one.
+                            // This relies purely on game ply continuity, so it's
+                            // not fool proof and may not work perfectly on
+                            // some extreme, weird data.
+                            if (prev_ply + 1 == sfens.back().gamePly)
+                            {
+                                // The game continues.
+                                prev_ply += 1;
+                            }
+                            else
+                            {
+                                // The game ended. We note that and average evals if requested.
+                                // The last position is already from a new game.
+                                auto game_end_iter = sfens.end() - 1;
+                                on_full_game_read(game_start_iter, game_end_iter);
+
+                                game_start_iter = game_end_iter;
+                                prev_ply = game_start_iter->gamePly;
+                            }
+                        }
                     }
                     else
                     {
@@ -279,6 +353,12 @@ namespace Learner{
                             return;
                         }
                     }
+                }
+
+                // Handle smoothing the last game.
+                if (game_start_iter != sfens.end())
+                {
+                    on_full_game_read(game_start_iter, sfens.end());
                 }
 
                 // Shuffle the read phase data.
@@ -340,6 +420,7 @@ namespace Learner{
 
         size_t sfen_read_size;
         size_t thread_buffer_size;
+        size_t eval_smoothing;
 
         // Random number to shuffle when reading the phase
         PRNG prng;

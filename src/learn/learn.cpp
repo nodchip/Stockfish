@@ -375,6 +375,9 @@ namespace Learner
             // of the teacher phase exceeds this value, discard the teacher phase.
             int eval_limit = 32000;
 
+            // eval used for learning is `eval_smoothing` consecutive evals averaged
+            int eval_smoothing = 1;
+
             // Flag whether to dig a folder each time the evaluation function is saved.
             // If true, do not dig the folder.
             bool save_only_once = false;
@@ -423,6 +426,8 @@ namespace Learner
                 // If reduction_gameply is set to 0, rand(0) will be divided by 0, so correct it to 1.
                 reduction_gameply = max(reduction_gameply, 1);
 
+                eval_smoothing = max(eval_smoothing, 1);
+
                 if (newbob_decay != 1.0 && !Options["SkipLoadingEval"]) {
                     // Save the current net to [EvalSaveDir]\original.
                     Eval::NNUE::save_eval("original");
@@ -451,7 +456,8 @@ namespace Learner
                 prm.num_threads,
                 std::to_string(prng.next_random_seed()),
                 prm.sfen_read_size,
-                prm.thread_buffer_size),
+                prm.thread_buffer_size,
+                prm.eval_smoothing),
             learn_loss_sum{}
         {
             save_count = 0;
@@ -702,7 +708,7 @@ namespace Learner
             {
                 goto RETRY_READ;
             }
-            
+
             // We want to position being trained on not to be terminal
             if (MoveList<LEGAL>(pos).size() == 0)
                 goto RETRY_READ;
@@ -1086,6 +1092,7 @@ namespace Learner
             else if (option == "max_grad") is >> max_grad;
 
             else if (option == "reduction_gameply") is >> params.reduction_gameply;
+            else if (option == "eval_smoothing") is >> params.eval_smoothing;
 
             else if (option == "eval_limit") is >> params.eval_limit;
             else if (option == "save_only_once") params.save_only_once = true;
@@ -1184,6 +1191,7 @@ namespace Learner
         out << "  - dest_score_max_value     : " << dest_score_max_value << endl;
 
         out << "  - reduction_gameply        : " << params.reduction_gameply << endl;
+        out << "  - eval_smoothing           : " << params.eval_smoothing << endl;
 
         out << "  - elmo_lambda_low          : " << elmo_lambda_low << endl;
         out << "  - elmo_lambda_high         : " << elmo_lambda_high << endl;
