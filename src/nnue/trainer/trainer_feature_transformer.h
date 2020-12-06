@@ -457,6 +457,26 @@ namespace Eval::NNUE {
 
 #endif
 
+            // dampen the running average
+            constexpr double dampening = 0.99;
+            total_gradients_ *= dampening;
+            for (auto& g : acc_gradients_by_feature_)
+                g *= dampening;
+
+            struct alignas(kCacheLineSize) A
+            {
+                A(double v) :
+                    val(v)
+                {
+                }
+
+                double val;
+            };
+            std::vector<A, CacheLineAlignedAllocator<A>> total_gradients_change;
+            std::vector<double, CacheLineAlignedAllocator<double>> acc_gradients_by_feature_change;
+            total_gradients_change.resize(thread_pool.size(), 0.0);
+            acc_gradients_by_feature_change.resize(Features::Factorizer<RawFeatures>::get_dimensions(), 0.0);
+
             thread_pool.execute_with_workers(
                 [&, num_threads = thread_pool.size()](Thread& th) {
                     const auto thread_index = th.thread_idx();
@@ -466,6 +486,16 @@ namespace Eval::NNUE {
 
                         for (IndexType c = 0; c < 2; ++c) {
                             const IndexType output_offset = batch_offset + kHalfDimensions * c;
+                            double grad_norm = 0.0;
+                            for(IndexType i = 0; i < kHalfDimensions; ++i)
+                            {
+                                auto g = gradients_[output_offset + i];
+                                grad_norm += g * g;
+                            }
+                            const double feature_prob =
+                                (double)RawFeatures::kMaxActiveDimensions
+                                / RawFeatures::kDimensions;
+
                             for (const auto& feature : batch_[b].training_features[c]) {
                                 const IndexType feature_index = feature.get_index();
                                 const IndexType weights_offset =
@@ -489,8 +519,22 @@ namespace Eval::NNUE {
                                 // (even a different cache line)
                                 observed_features.set(feature_index);
 
+                                const double f =
+                                    (0.00001 * feature_prob + acc_gradients_by_feature_[feature_index])
+                                    / (0.00001 + total_gradients_);
+
+                                const double overobservation =
+                                    f / feature_prob;
+
+                                // The addition of 0.01 effectively makes the maximum
+                                // LR scaling factor be 10x, which is achieved for
+                                // unobserved features.
                                 const auto scale = static_cast<LearnFloatType>(
-                                    effective_learning_rate * feature.get_count());
+                                    effective_learning_rate * feature.get_count())
+                                    / std::sqrt(0.01 + overobservation);
+
+                                acc_gradients_by_feature_change[feature_index] += scale * grad_norm;
+                                total_gradients_change[thread_index].val += scale * grad_norm;
 
 #if defined (USE_BLAS)
 
@@ -516,6 +560,15 @@ namespace Eval::NNUE {
             );
 
             thread_pool.wait_for_workers_finished();
+
+            for (IndexType i = 0; i < Features::Factorizer<RawFeatures>::get_dimensions(); ++i)
+            {
+                acc_gradients_by_feature_[i] += acc_gradients_by_feature_change[i];
+            }
+            for (auto [v] : total_gradients_change)
+            {
+                total_gradients_ += v;
+            }
         }
 
     private:
@@ -528,6 +581,9 @@ namespace Eval::NNUE {
             weights_(),
             momentum_(0.2),
             learning_rate_scale_(1.0) {
+
+            acc_gradients_by_feature_.resize(Features::Factorizer<RawFeatures>::get_dimensions(), 0.0);
+            total_gradients_ = 0.0;
 
             dequantize_parameters();
         }
@@ -688,6 +744,8 @@ namespace Eval::NNUE {
 
         // Buffer used for updating parameters
         std::vector<LearnFloatType, CacheLineAlignedAllocator<LearnFloatType>> gradients_;
+        std::vector<double, CacheLineAlignedAllocator<double>> acc_gradients_by_feature_;
+        double total_gradients_;
 
         // Forward propagation buffer
         std::vector<LearnFloatType, CacheLineAlignedAllocator<LearnFloatType>> output_;
