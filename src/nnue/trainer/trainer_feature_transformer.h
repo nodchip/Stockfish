@@ -490,7 +490,7 @@ namespace Eval::NNUE {
                                 observed_features.set(feature_index);
 
                                 const auto scale = static_cast<LearnFloatType>(
-                                    effective_learning_rate / feature.get_count());
+                                    effective_learning_rate * feature.get_count());
 
 #if defined (USE_BLAS)
 
