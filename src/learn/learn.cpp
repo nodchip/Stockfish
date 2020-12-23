@@ -79,6 +79,7 @@ namespace Learner
 
     static double in_sigmoid_scale = winning_probability_coefficient;
     static double out_sigmoid_scale = winning_probability_coefficient;
+    static bool auto_adjust_in_sigmoid_scale = true;
 
     // Score scale factors. ex) If we set src_score_min_value = 0.0,
     // src_score_max_value = 1.0, dest_score_min_value = 0.0,
@@ -599,6 +600,8 @@ namespace Learner
 
         PSVector fetch_next_validation_set();
 
+        void adjust_in_sigmoid_scale();
+
         void learn_worker(Thread& th, std::atomic<uint64_t>& counter, uint64_t limit);
 
         void update_weights(const PSVector& psv, uint64_t epoch);
@@ -644,6 +647,9 @@ namespace Learner
 
         // For calculation of learning data loss
         Loss learn_loss_sum;
+
+        static constexpr uint64_t in_sigmoid_scale_adjust_buffer_size = 100000;
+        std::vector<PackedSfenValue> in_sigmoid_scale_adjust_buffer;
     };
 
     void LearnerThink::set_learning_search_limits()
@@ -669,6 +675,77 @@ namespace Learner
         limits.depth = 0;
     }
 
+    void LearnerThink::adjust_in_sigmoid_scale()
+    {
+        constexpr int max_steps = 10;
+        constexpr double step_change_on_plateou = 0.1;
+        constexpr double satisfactory_error = 0.01;
+        constexpr double initial_step = 0.01;
+
+        struct WDL { int w=0, d=0, l=0; };
+        std::map<int, WDL> perfs;
+        for (auto& ps : in_sigmoid_scale_adjust_buffer)
+        {
+            auto& p = perfs[ps.score];
+            if (ps.game_result == -1) p.l += 1;
+            else if (ps.game_result == 1) p.w += 1;
+            else p.d += 1;
+        }
+
+        std::vector<std::pair<float, float>> points;
+        points.reserve(perfs.size());
+        for (auto& [e, wdl] : perfs)
+        {
+            const float p = (wdl.w + wdl.d * 0.5) / (wdl.w + wdl.d + wdl.l);
+            points.emplace_back(e, p);
+        }
+
+        auto calc_error = [&](double k) {
+            double sum = 0.0;
+            for (auto [x, y] : points)
+            {
+                double diff = Math::sigmoid(x * k) - y;
+                sum += diff * diff;
+            }
+            return sum;
+        };
+
+        double k = in_sigmoid_scale;
+        double step = initial_step;
+        double prev_err = std::numeric_limits<double>::max();
+        double err = calc_error(k);
+        for (int i = 0; i < max_steps; ++i)
+        {
+            if (std::abs(err - prev_err) / err < satisfactory_error)
+                break;
+
+            const double err_0 = calc_error(k+step);
+            const double err_1 = calc_error(k-step);
+
+            double minerr = err;
+            if (err_0 < minerr) minerr = err_0;
+            if (err_1 < minerr) minerr = err_1;
+
+            if (minerr == err)
+            {
+                step *= step_change_on_plateou;
+                continue;
+            }
+            else if (minerr == err_1)
+            {
+                k -= step;
+            }
+            else
+            {
+                k += step;
+            }
+
+            prev_err = err;
+            err = minerr;
+        }
+        in_sigmoid_scale = k;
+    }
+    
     PSVector LearnerThink::fetch_next_validation_set()
     {
         PSVector validation_data;
@@ -745,6 +822,14 @@ namespace Learner
 
         stop_flag = false;
 
+        if (auto_adjust_in_sigmoid_scale)
+        {
+            in_sigmoid_scale_adjust_buffer.resize(
+                std::min(
+                    in_sigmoid_scale_adjust_buffer_size,
+                    params.mini_batch_size));
+        }
+
         for(uint64_t epoch = 1; epoch <= epochs; ++epoch)
         {
             std::atomic<uint64_t> counter{0};
@@ -764,6 +849,16 @@ namespace Learner
 
             if (stop_flag)
                 break;
+
+            if (auto_adjust_in_sigmoid_scale)
+            {
+                adjust_in_sigmoid_scale();
+                if (params.verbose)
+                {
+                    auto out = sync_region_cout.new_region();
+                    out << "INFO: (learn): in_sigmoid_scale = " << in_sigmoid_scale << '\n';
+                }
+            }
         }
 
         Eval::NNUE::finalize_net();
@@ -825,6 +920,11 @@ namespace Learner
                 const Value shallow_value = Eval::evaluate(pos);
 
                 Eval::NNUE::add_example(pos, rootColor, shallow_value, ps, 1.0);
+
+                if (auto_adjust_in_sigmoid_scale && iter < in_sigmoid_scale_adjust_buffer_size)
+                {
+                    in_sigmoid_scale_adjust_buffer[iter] = ps;
+                }
             };
 
             if (!pos.pseudo_legal((Move)ps.move) || !pos.legal((Move)ps.move))
@@ -1201,6 +1301,8 @@ namespace Learner
                 is >> in_sigmoid_scale;
             else if (option == "out_sigmoid_scale")
                 is >> out_sigmoid_scale;
+            else if (option == "auto_adjust_in_sigmoid_scale")
+                is >> auto_adjust_in_sigmoid_scale;
 
             // Using WDL with win rate model instead of sigmoid
             else if (option == "use_wdl") is >> use_wdl;
@@ -1307,6 +1409,7 @@ namespace Learner
         out << "  - winning prob coeff       : " << winning_probability_coefficient << endl;
         out << "  - in_sigmoid_scale         : " << in_sigmoid_scale << endl;
         out << "  - out_sigmoid_scale        : " << out_sigmoid_scale << endl;
+        out << "  - auto_adjust_in_sigm_scale: " << auto_adjust_in_sigmoid_scale << endl;
         out << "  - use_wdl                  : " << use_wdl << endl;
 
         out << "  - src_score_min_value      : " << src_score_min_value << endl;
