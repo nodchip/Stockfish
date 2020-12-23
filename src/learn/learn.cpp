@@ -78,7 +78,7 @@ namespace Learner
     static double winning_probability_coefficient = 1.0 / PawnValueEg / 4.0 * std::log(10.0);
 
     static double in_sigmoid_scale = winning_probability_coefficient;
-    static double out_sigmoid_scale = winning_probability_coefficient;
+    static double out_sigmoid_scale = 1.0 / 900.0; // empirically derived from static classical and nnue eval.
     static bool auto_adjust_in_sigmoid_scale = true;
 
     // Score scale factors. ex) If we set src_score_min_value = 0.0,
