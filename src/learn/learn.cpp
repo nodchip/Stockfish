@@ -681,12 +681,13 @@ namespace Learner
         constexpr double step_change_on_plateou = 0.1;
         constexpr double satisfactory_error = 0.01;
         constexpr double initial_step = 0.01;
+        constexpr int bin_size = 16;
 
         struct WDL { int w=0, d=0, l=0; };
         std::map<int, WDL> perfs;
         for (auto& ps : in_sigmoid_scale_adjust_buffer)
         {
-            auto& p = perfs[ps.score];
+            auto& p = perfs[ps.score / bin_size * bin_size];
             if (ps.game_result == -1) p.l += 1;
             else if (ps.game_result == 1) p.w += 1;
             else p.d += 1;
@@ -745,7 +746,7 @@ namespace Learner
         }
         in_sigmoid_scale = k;
     }
-    
+
     PSVector LearnerThink::fetch_next_validation_set()
     {
         PSVector validation_data;
