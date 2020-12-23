@@ -77,6 +77,9 @@ namespace Learner
 {
     static double winning_probability_coefficient = 1.0 / PawnValueEg / 4.0 * std::log(10.0);
 
+    static double in_sigmoid_scale = winning_probability_coefficient;
+    static double out_sigmoid_scale = winning_probability_coefficient;
+
     // Score scale factors. ex) If we set src_score_min_value = 0.0,
     // src_score_max_value = 1.0, dest_score_min_value = 0.0,
     // dest_score_max_value = 10000.0, [0.0, 1.0] will be scaled to [0, 10000].
@@ -234,11 +237,11 @@ namespace Learner
     }
 
     template <typename ValueT>
-    static auto& expected_perf_(ValueT&& v_)
+    static auto& expected_perf_(ValueT&& v_, double& scale)
     {
         using namespace Learner::Autograd::UnivariateStatic;
 
-        static thread_local auto perf_ = sigmoid(std::forward<ValueT>(v_) * ConstantRef<double>(winning_probability_coefficient));
+        static thread_local auto perf_ = sigmoid(std::forward<ValueT>(v_) * ConstantRef<double>(scale));
 
         return perf_;
     }
@@ -331,8 +334,8 @@ namespace Learner
     {
         using namespace Learner::Autograd::UnivariateStatic;
 
-        static thread_local auto& q_ = expected_perf_(VariableParameter<double, 0>{});
-        static thread_local auto& p_ = expected_perf_(scale_score_(ConstantParameter<double, 1>{}));
+        static thread_local auto& q_ = expected_perf_(VariableParameter<double, 0>{}, out_sigmoid_scale);
+        static thread_local auto& p_ = expected_perf_(scale_score_(ConstantParameter<double, 1>{}), in_sigmoid_scale);
         static thread_local auto t_ = (ConstantParameter<double, 2>{} + 1.0) * 0.5;
         static thread_local auto lambda_ = ConstantParameter<double, 3>{};
         static thread_local auto& loss_ = cross_entropy_(q_, p_, t_, lambda_);
@@ -1194,6 +1197,10 @@ namespace Learner
 
             else if (option == "winning_probability_coefficient")
                 is >> winning_probability_coefficient;
+            else if (option == "in_sigmoid_scale")
+                is >> in_sigmoid_scale;
+            else if (option == "out_sigmoid_scale")
+                is >> out_sigmoid_scale;
 
             // Using WDL with win rate model instead of sigmoid
             else if (option == "use_wdl") is >> use_wdl;
@@ -1298,6 +1305,8 @@ namespace Learner
         out << "  - skip repeated positions  : " << params.skip_duplicated_positions_in_training << endl;
 
         out << "  - winning prob coeff       : " << winning_probability_coefficient << endl;
+        out << "  - in_sigmoid_scale         : " << in_sigmoid_scale << endl;
+        out << "  - out_sigmoid_scale        : " << out_sigmoid_scale << endl;
         out << "  - use_wdl                  : " << use_wdl << endl;
 
         out << "  - src_score_min_value      : " << src_score_min_value << endl;
