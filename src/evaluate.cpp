@@ -35,6 +35,7 @@
 #include "misc.h"
 #include "pawns.h"
 #include "thread.h"
+#include "timeman.h"
 #include "uci.h"
 #include "incbin/incbin.h"
 
@@ -124,6 +125,26 @@ namespace Eval {
                       eval_file_loaded = eval_file;
               }
           }
+    }
+
+    void export_net(const std::optional<std::string>& filename) {
+      std::string actualFilename;
+      if (filename.has_value()) {
+        actualFilename = filename.value();
+      } else {
+        if (eval_file_loaded != EvalFileDefaultName) {
+          sync_cout << "Failed to export a net. A non-embedded net can only be saved if the filename is specified." << sync_endl;
+          return;
+        }
+        actualFilename = EvalFileDefaultName;
+      }
+
+      ofstream stream(actualFilename, std::ios_base::binary);
+      if (save_eval(stream)) {
+          sync_cout << "Network saved successfully to " << actualFilename << "." << sync_endl;
+      } else {
+          sync_cout << "Failed to export a net." << sync_endl;
+      }
     }
 
     /// NNUE::verify() verifies that the last net used was loaded successfully
@@ -1120,7 +1141,7 @@ Value Eval::evaluate(const Position& pos) {
                     + material / 32
                     - 4 * pos.rule50_count();
 
-         Value nnue = NNUE::evaluate(pos) * scale / 1024 + Tempo;
+         Value nnue = NNUE::evaluate(pos) * scale / 1024 + Time.tempoNNUE;
 
          if (pos.is_chess960())
              nnue += fix_FRC(pos);
