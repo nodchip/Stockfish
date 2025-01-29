@@ -1107,7 +1107,7 @@ moves_loop: // When in check, search starts here
               && (tte->bound() & BOUND_LOWER)
               &&  tte->depth() >= depth - 3)
           {
-              Value singularBeta = ttValue - (82 + 65 * (ss->ttPv && !PvNode)) * depth / 64;
+              Value singularBeta = ttValue - (88 + 66 * (ss->ttPv && !PvNode)) * depth / 63;
               Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
@@ -1121,7 +1121,7 @@ moves_loop: // When in check, search starts here
 
                   // Avoid search explosion by limiting the number of double extensions
                   if (  !PvNode
-                      && value < singularBeta - 21
+                      && value < singularBeta - 23
                       && ss->doubleExtensions <= 11)
                   {
                       extension = 2;
@@ -1143,7 +1143,7 @@ moves_loop: // When in check, search starts here
 
               // If we are on a cutNode, reduce it based on depth (negative extension) (~1 Elo)
               else if (cutNode)
-                  extension = depth > 8 && depth < 17 ? -3 : -1;
+                  extension = depth > 8 && depth < 16 ? -3 : -1;
 
               // If the eval of ttMove is less than value, we reduce it (negative extension) (~1 Elo)
               else if (ttValue <= value)
@@ -1163,7 +1163,7 @@ moves_loop: // When in check, search starts here
           else if (   PvNode
                    && move == ttMove
                    && move == ss->killers[0]
-                   && (*contHist[0])[movedPiece][to_sq(move)] >= 5168)
+                   && (*contHist[0])[movedPiece][to_sq(move)] >= 5371)
               extension = 1;
       }
 
