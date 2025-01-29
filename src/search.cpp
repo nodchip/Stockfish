@@ -38,6 +38,49 @@
 
 namespace Stockfish {
 
+int L67_0 = 140;
+int L75_0 = 1372;
+int L75_2 = 1024;
+int L75_1 = 1073;
+int L75_3 = 936;
+int L79_0 = 3;
+int L80_0 = 3;
+int L80_1 = 2;
+int L85_0 = 336;
+int L85_1 = 547;
+int L85_2 = 1561;
+int L647_0 = 90;
+int L744_0 = -1817;
+int L744_1 = 1817;
+int L754_0 = 173;
+int L760_0 = 456;
+int L760_1 = 252;
+int L770_0 = 9;
+int L771_0 = 306;
+int L773_0 = 24923;
+
+TUNE(L67_0,
+     L75_0,
+     L75_2,
+     L75_1,
+     L75_3,
+     L79_0,
+     L80_0,
+     L80_1,
+     L85_0,
+     L85_1,
+     L85_2,
+     L647_0,
+     L744_0,
+     L744_1,
+     L754_0,
+     L760_0,
+     L760_1,
+     L770_0,
+     L771_0,
+     L773_0);
+TUNE(SetRange(1, 2048), L75_2);
+
 namespace Search {
 
   LimitsType Limits;
@@ -64,7 +107,7 @@ namespace {
 
   // Futility margin
   Value futility_margin(Depth d, bool improving) {
-    return Value(140 * (d - improving));
+    return Value(L67_0 * (d - improving));
   }
 
   // Reductions lookup table initialized at startup
@@ -72,17 +115,17 @@ namespace {
 
   Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
     int r = Reductions[d] * Reductions[mn];
-    return (r + 1372 - int(delta) * 1073 / int(rootDelta)) / 1024 + (!i && r > 936);
+    return (r + L75_0 - int(delta) * L75_1 / int(rootDelta)) / L75_2 + (!i && r > L75_3);
   }
 
-  constexpr int futility_move_count(bool improving, Depth depth) {
-    return improving ? (3 + depth * depth)
-                     : (3 + depth * depth) / 2;
+  int futility_move_count(bool improving, Depth depth) {
+    return improving ? (L79_0 + depth * depth)
+                     : (L80_0 + depth * depth) / L80_1;
   }
 
   // History and stats update bonus, based on depth
   int stat_bonus(Depth d) {
-    return std::min(336 * d - 547, 1561);
+    return std::min(L85_0 * d - L85_1, L85_2);
   }
 
   // Add a small random component to draw evaluations to avoid 3-fold blindness
@@ -644,7 +687,7 @@ namespace {
 
         // Partial workaround for the graph history interaction problem
         // For high rule50 counts don't produce transposition table cutoffs.
-        if (pos.rule50_count() < 90)
+        if (pos.rule50_count() < L647_0)
             return ttValue;
     }
 
@@ -741,7 +784,7 @@ namespace {
     // Use static evaluation difference to improve quiet move ordering (~4 Elo)
     if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
     {
-        int bonus = std::clamp(-18 * int((ss-1)->staticEval + ss->staticEval), -1817, 1817);
+        int bonus = std::clamp(-18 * int((ss-1)->staticEval + ss->staticEval), L744_0, L744_1);
         thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << bonus;
     }
 
@@ -751,13 +794,13 @@ namespace {
     // margin and the improving flag are used in various pruning heuristics.
     improvement =   (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
                   : (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
-                  :                                    173;
+                  :                                    L754_0;
     improving = improvement > 0;
 
     // Step 7. Razoring (~1 Elo).
     // If eval is really low check with qsearch if it can exceed alpha, if it can't,
     // return a fail low.
-    if (eval < alpha - 456 - 252 * depth * depth)
+    if (eval < alpha - L760_0 - L760_1 * depth * depth)
     {
         value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
         if (value < alpha)
@@ -767,10 +810,10 @@ namespace {
     // Step 8. Futility pruning: child node (~40 Elo).
     // The depth condition is important for mate finding.
     if (   !ss->ttPv
-        &&  depth < 9
-        &&  eval - futility_margin(depth, improving) - (ss-1)->statScore / 306 >= beta
+        &&  depth < L770_0
+        &&  eval - futility_margin(depth, improving) - (ss-1)->statScore / L771_0 >= beta
         &&  eval >= beta
-        &&  eval < 24923) // larger than VALUE_KNOWN_WIN, but smaller than TB wins
+        &&  eval < L773_0) // larger than VALUE_KNOWN_WIN, but smaller than TB wins
         return eval;
 
     // Step 9. Null move search with verification search (~35 Elo)
