@@ -38,6 +38,58 @@
 
 namespace Stockfish {
 
+int L1059_0 = 4;
+int L1059_1 = 22;
+int L1059_2 = 2;
+int L1065_0 = 3;
+int L1067_0 = 82;
+int L1067_1 = 65;
+int L1067_2 = 64;
+int L1068_0 = 1;
+int L1068_1 = 2;
+int L1076_0 = 1;
+int L1081_0 = 21;
+int L1082_0 = 11;
+int L1084_0 = 2;
+int L1085_0 = 13;
+int L1099_0 = -2;
+int L1103_0 = 8;
+int L1103_1 = 17;
+int L1103_2 = -3;
+int L1103_3 = -1;
+int L1107_0 = -1;
+int L1111_0 = -1;
+int L1116_0 = 9;
+int L1117_0 = 1;
+int L1123_0 = 5168;
+int L1124_0 = 1;
+
+TUNE(L1059_0,
+     L1059_1,
+     L1059_2,
+     L1065_0,
+     L1067_0,
+     L1067_1,
+     L1068_0,
+     L1076_0,
+     L1081_0,
+     L1082_0,
+     L1084_0,
+     L1085_0,
+     L1099_0,
+     L1103_0,
+     L1103_1,
+     L1103_2,
+     L1103_3,
+     L1107_0,
+     L1111_0,
+     L1116_0,
+     L1117_0,
+     L1123_0,
+     L1124_0);
+TUNE(SetRange(1, 128), L1067_2);
+TUNE(SetRange(1, 4), L1068_1);
+
 namespace Search {
 
   LimitsType Limits;
@@ -1056,15 +1108,15 @@ moves_loop: // When in check, search starts here
           // Their values are optimized to time controls of 180+1.8 and longer
           // so changing them requires tests at this type of time controls.
           if (   !rootNode
-              &&  depth >= 3 - (thisThread->completedDepth > 22) + 2 * (PvNode && tte->is_pv())
+              &&  depth >= L1059_0 - (thisThread->completedDepth > L1059_1) + L1059_2 * (PvNode && tte->is_pv())
               &&  move == ttMove
               && !excludedMove // Avoid recursive singular search
            /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
               &&  abs(ttValue) < VALUE_KNOWN_WIN
               && (tte->bound() & BOUND_LOWER)
-              &&  tte->depth() >= depth - 3)
+              &&  tte->depth() >= depth - L1065_0)
           {
-              Value singularBeta = ttValue - (88 + 66 * (ss->ttPv && !PvNode)) * depth / 67;
+              Value singularBeta = ttValue - (L1067_0 + L1067_1 * (ss->ttPv && !PvNode)) * depth / L1067_2;
               Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
@@ -1073,16 +1125,16 @@ moves_loop: // When in check, search starts here
 
               if (value < singularBeta)
               {
-                  extension = 1;
+                  extension = L1076_0;
                   singularQuietLMR = !ttCapture;
 
                   // Avoid search explosion by limiting the number of double extensions
                   if (  !PvNode
-                      && value < singularBeta - 22
-                      && ss->doubleExtensions <= 11)
+                      && value < singularBeta - L1081_0
+                      && ss->doubleExtensions <= L1082_0)
                   {
-                      extension = 2;
-                      depth += depth < 13;
+                      extension = L1084_0;
+                      depth += depth < L1085_0;
                   }
               }
 
@@ -1096,32 +1148,32 @@ moves_loop: // When in check, search starts here
 
               // If the eval of ttMove is greater than beta, we reduce it (negative extension) (~7 Elo)
               else if (ttValue >= beta)
-                  extension = -2 - !PvNode;
+                  extension = L1099_0 - !PvNode;
 
               // If we are on a cutNode, reduce it based on depth (negative extension) (~1 Elo)
               else if (cutNode)
-                  extension = depth > 8 && depth < 19 ? -3 : -1;
+                  extension = depth > L1103_0 && depth < L1103_1 ? L1103_2 : L1103_3;
 
               // If the eval of ttMove is less than value, we reduce it (negative extension) (~1 Elo)
               else if (ttValue <= value)
-                  extension = -1;
+                  extension = L1107_0;
 
               // If the eval of ttMove is less than alpha, we reduce it (negative extension) (~1 Elo)
               else if (ttValue <= alpha)
-                  extension = -1;
+                  extension = L1111_0;
           }
 
           // Check extensions (~1 Elo)
           else if (   givesCheck
-                   && depth > 8)
-              extension = 1;
+                   && depth > L1116_0)
+              extension = L1117_0;
 
           // Quiet ttMove extensions (~1 Elo)
           else if (   PvNode
                    && move == ttMove
                    && move == ss->killers[0]
-                   && (*contHist[0])[movedPiece][to_sq(move)] >= 5496)
-              extension = 1;
+                   && (*contHist[0])[movedPiece][to_sq(move)] >= L1123_0)
+              extension = L1124_0;
       }
 
       // Add extension to new depth
