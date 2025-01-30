@@ -38,6 +38,29 @@
 
 namespace Stockfish {
 
+int L67_0 = 140;
+int L75_0 = 1372;
+int L75_1 = 1073;
+int L75_2 = 1024;
+int L75_3 = 936;
+int L79_0 = 3;
+int L80_0 = 3;
+int L80_1 = 2;
+int L85_0 = 336;
+int L85_1 = 547;
+int L85_2 = 1561;
+TUNE(L67_0);
+TUNE(L75_0);
+TUNE(L75_1);
+TUNE(L75_3);
+TUNE(L79_0);
+TUNE(L80_0);
+TUNE(L85_0);
+TUNE(L85_1);
+TUNE(L85_2);
+TUNE(SetRange(1, 2048), L75_2);
+TUNE(SetRange(1, 4), L80_1);
+
 namespace Search {
 
   LimitsType Limits;
@@ -64,7 +87,7 @@ namespace {
 
   // Futility margin
   Value futility_margin(Depth d, bool improving) {
-    return Value(140 * (d - improving));
+    return Value(L67_0 * (d - improving));
   }
 
   // Reductions lookup table initialized at startup
@@ -72,17 +95,17 @@ namespace {
 
   Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
     int r = Reductions[d] * Reductions[mn];
-    return (r + 1372 - int(delta) * 1073 / int(rootDelta)) / 1024 + (!i && r > 936);
+    return (r + L75_0 - int(delta) * L75_1 / int(rootDelta)) / L75_2 + (!i && r > L75_3);
   }
 
-  constexpr int futility_move_count(bool improving, Depth depth) {
-    return improving ? (3 + depth * depth)
-                     : (3 + depth * depth) / 2;
+  int futility_move_count(bool improving, Depth depth) {
+    return improving ? (L79_0 + depth * depth)
+                     : (L80_0 + depth * depth) / L80_1;
   }
 
   // History and stats update bonus, based on depth
   int stat_bonus(Depth d) {
-    return std::min(336 * d - 547, 1561);
+    return std::min(L85_0 * d - L85_1, L85_2);
   }
 
   // Add a small random component to draw evaluations to avoid 3-fold blindness
