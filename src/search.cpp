@@ -52,17 +52,6 @@ int L1081_0 = 21;
 int L1082_0 = 11;
 int L1084_0 = 2;
 int L1085_0 = 13;
-int L1099_0 = -2;
-int L1103_0 = 8;
-int L1103_1 = 17;
-int L1103_2 = -3;
-int L1103_3 = -1;
-int L1107_0 = -1;
-int L1111_0 = -1;
-int L1116_0 = 9;
-int L1117_0 = 1;
-int L1123_0 = 5168;
-int L1124_0 = 1;
 
 TUNE(L1059_0,
      L1059_1,
@@ -75,18 +64,8 @@ TUNE(L1059_0,
      L1081_0,
      L1082_0,
      L1084_0,
-     L1085_0,
-     L1099_0,
-     L1103_0,
-     L1103_1,
-     L1103_2,
-     L1103_3,
-     L1107_0,
-     L1111_0,
-     L1116_0,
-     L1117_0,
-     L1123_0,
-     L1124_0);
+     L1085_0
+     );
 TUNE(SetRange(1, 128), L1067_2);
 TUNE(SetRange(1, 4), L1068_1);
 
@@ -1117,7 +1096,7 @@ moves_loop: // When in check, search starts here
               &&  tte->depth() >= depth - L1065_0)
           {
               Value singularBeta = ttValue - (L1067_0 + L1067_1 * (ss->ttPv && !PvNode)) * depth / L1067_2;
-              Depth singularDepth = (depth - 1) / 2;
+              Depth singularDepth = (depth - L1068_0) / L1068_1;
 
               ss->excludedMove = move;
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
@@ -1148,32 +1127,32 @@ moves_loop: // When in check, search starts here
 
               // If the eval of ttMove is greater than beta, we reduce it (negative extension) (~7 Elo)
               else if (ttValue >= beta)
-                  extension = L1099_0 - !PvNode;
+                  extension = -2 - !PvNode;
 
               // If we are on a cutNode, reduce it based on depth (negative extension) (~1 Elo)
               else if (cutNode)
-                  extension = depth > L1103_0 && depth < L1103_1 ? L1103_2 : L1103_3;
+                  extension = depth > 8 && depth < 17 ? -3 : -1;
 
               // If the eval of ttMove is less than value, we reduce it (negative extension) (~1 Elo)
               else if (ttValue <= value)
-                  extension = L1107_0;
+                  extension = -1;
 
               // If the eval of ttMove is less than alpha, we reduce it (negative extension) (~1 Elo)
               else if (ttValue <= alpha)
-                  extension = L1111_0;
+                  extension = -1;
           }
 
           // Check extensions (~1 Elo)
           else if (   givesCheck
-                   && depth > L1116_0)
-              extension = L1117_0;
+                   && depth > 9)
+              extension = 1;
 
           // Quiet ttMove extensions (~1 Elo)
           else if (   PvNode
                    && move == ttMove
                    && move == ss->killers[0]
-                   && (*contHist[0])[movedPiece][to_sq(move)] >= L1123_0)
-              extension = L1124_0;
+                   && (*contHist[0])[movedPiece][to_sq(move)] >= 5168)
+              extension = 1;
       }
 
       // Add extension to new depth
