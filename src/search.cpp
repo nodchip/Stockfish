@@ -38,29 +38,6 @@
 
 namespace Stockfish {
 
-int L1059_0 = 4;
-int L1059_1 = 22;
-int L1059_2 = 2;
-int L1065_0 = 3;
-int L1067_0 = 82;
-int L1067_1 = 65;
-int L1067_2 = 64;
-int L1081_0 = 21;
-int L1082_0 = 11;
-int L1085_0 = 13;
-
-TUNE(L1059_0,
-     L1059_1,
-     L1059_2,
-     L1065_0,
-     L1067_0,
-     L1067_1,
-     L1081_0,
-     L1082_0,
-     L1085_0
-     );
-TUNE(SetRange(1, 128), L1067_2);
-
 namespace Search {
 
   LimitsType Limits;
@@ -1079,15 +1056,15 @@ moves_loop: // When in check, search starts here
           // Their values are optimized to time controls of 180+1.8 and longer
           // so changing them requires tests at this type of time controls.
           if (   !rootNode
-              &&  depth >= L1059_0 - (thisThread->completedDepth > L1059_1) + L1059_2 * (PvNode && tte->is_pv())
+              &&  depth >= 4 - (thisThread->completedDepth > 21) + 2 * (PvNode && tte->is_pv())
               &&  move == ttMove
               && !excludedMove // Avoid recursive singular search
            /* &&  ttValue != VALUE_NONE Already implicit in the next condition */
               &&  abs(ttValue) < VALUE_KNOWN_WIN
               && (tte->bound() & BOUND_LOWER)
-              &&  tte->depth() >= depth - L1065_0)
+              &&  tte->depth() >= depth - 3)
           {
-              Value singularBeta = ttValue - (L1067_0 + L1067_1 * (ss->ttPv && !PvNode)) * depth / L1067_2;
+              Value singularBeta = ttValue - (90 + 64 * (ss->ttPv && !PvNode)) * depth / 61;
               Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
@@ -1101,11 +1078,11 @@ moves_loop: // When in check, search starts here
 
                   // Avoid search explosion by limiting the number of double extensions
                   if (  !PvNode
-                      && value < singularBeta - L1081_0
-                      && ss->doubleExtensions <= L1082_0)
+                      && value < singularBeta - 20
+                      && ss->doubleExtensions <= 11)
                   {
                       extension = 2;
-                      depth += depth < L1085_0;
+                      depth += depth < 13;
                   }
               }
 
