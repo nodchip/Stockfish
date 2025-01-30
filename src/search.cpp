@@ -45,12 +45,8 @@ int L1065_0 = 3;
 int L1067_0 = 82;
 int L1067_1 = 65;
 int L1067_2 = 64;
-int L1068_0 = 1;
-int L1068_1 = 2;
-int L1076_0 = 1;
 int L1081_0 = 21;
 int L1082_0 = 11;
-int L1084_0 = 2;
 int L1085_0 = 13;
 
 TUNE(L1059_0,
@@ -59,15 +55,11 @@ TUNE(L1059_0,
      L1065_0,
      L1067_0,
      L1067_1,
-     L1068_0,
-     L1076_0,
      L1081_0,
      L1082_0,
-     L1084_0,
      L1085_0
      );
 TUNE(SetRange(1, 128), L1067_2);
-TUNE(SetRange(1, 4), L1068_1);
 
 namespace Search {
 
@@ -1096,7 +1088,7 @@ moves_loop: // When in check, search starts here
               &&  tte->depth() >= depth - L1065_0)
           {
               Value singularBeta = ttValue - (L1067_0 + L1067_1 * (ss->ttPv && !PvNode)) * depth / L1067_2;
-              Depth singularDepth = (depth - L1068_0) / L1068_1;
+              Depth singularDepth = (depth - 1) / 2;
 
               ss->excludedMove = move;
               value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
@@ -1104,7 +1096,7 @@ moves_loop: // When in check, search starts here
 
               if (value < singularBeta)
               {
-                  extension = L1076_0;
+                  extension = 1;
                   singularQuietLMR = !ttCapture;
 
                   // Avoid search explosion by limiting the number of double extensions
@@ -1112,7 +1104,7 @@ moves_loop: // When in check, search starts here
                       && value < singularBeta - L1081_0
                       && ss->doubleExtensions <= L1082_0)
                   {
-                      extension = L1084_0;
+                      extension = 2;
                       depth += depth < L1085_0;
                   }
               }
