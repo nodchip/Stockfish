@@ -38,27 +38,6 @@
 
 namespace Stockfish {
 
-int L779_0 = 17329;
-int L782_0 = 21;
-int L782_1 = 258;
-int L791_0 = 173;
-int L791_1 = 6;
-int L791_2 = 3;
-int L791_3 = 4;
-int L807_0 = 14;
-int L814_0 = 3;
-int L814_1 = 4;
-TUNE(L779_0,
-L782_0,
-L782_1,
-L791_1,
-L791_3,
-L807_0,
-L814_0);
-TUNE(SetRange(1, 346), L791_0);
-TUNE(SetRange(1, 6), L791_2);
-TUNE(SetRange(1, 8), L814_1);
-
 namespace Search {
 
   LimitsType Limits;
@@ -797,10 +776,10 @@ namespace {
     // Step 9. Null move search with verification search (~35 Elo)
     if (   !PvNode
         && (ss-1)->currentMove != MOVE_NULL
-        && (ss-1)->statScore < L779_0
+        && (ss-1)->statScore < 18006
         &&  eval >= beta
         &&  eval >= ss->staticEval
-        &&  ss->staticEval >= beta - L782_0 * depth + L782_1
+        &&  ss->staticEval >= beta - 22 * depth + 237
         && !excludedMove
         &&  pos.non_pawn_material(us)
         &&  ss->ply >= thisThread->nmpMinPly
@@ -809,7 +788,7 @@ namespace {
         assert(eval - beta >= 0);
 
         // Null move dynamic reduction based on depth and eval
-        Depth R = std::min(int(eval - beta) / L791_0, L791_1) + depth / L791_2 + L791_3;
+        Depth R = std::min(int(eval - beta) / 165, 6) + depth / 3 + 4;
 
         ss->currentMove = MOVE_NULL;
         ss->continuationHistory = &thisThread->continuationHistory[0][0][NO_PIECE][0];
@@ -825,14 +804,14 @@ namespace {
             // Do not return unproven mate or TB scores
             nullValue = std::min(nullValue, VALUE_TB_WIN_IN_MAX_PLY-1);
 
-            if (thisThread->nmpMinPly || depth < L807_0)
+            if (thisThread->nmpMinPly || depth < 14)
                 return nullValue;
 
             assert(!thisThread->nmpMinPly); // Recursive verification is not allowed
 
             // Do verification search at high depths, with null move pruning disabled
             // until ply exceeds nmpMinPly.
-            thisThread->nmpMinPly = ss->ply + L814_0 * (depth-R) / L814_1;
+            thisThread->nmpMinPly = ss->ply + 3 * (depth-R) / 4;
 
             Value v = search<NonPV>(pos, ss, beta-1, beta, depth-R, false);
 
