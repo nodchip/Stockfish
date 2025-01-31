@@ -38,6 +38,27 @@
 
 namespace Stockfish {
 
+int L1023_0 = 6;
+int L1024_0 = -3832;
+int L1027_0 = 2;
+int L1029_0 = 7011;
+int L1030_0 = -2;
+int L1034_0 = 12;
+int L1035_0 = 112;
+int L1035_1 = 138;
+int L1041_0 = -27;
+int L1041_1 = 16;
+TUNE(L1023_0,
+L1024_0,
+L1027_0,
+L1030_0,
+L1034_0,
+L1035_0,
+L1035_1,
+L1041_0,
+L1041_1);
+TUNE(SetRange(1, 14022), L1029_0);
+
 namespace Search {
 
   LimitsType Limits;
@@ -1020,25 +1041,25 @@ moves_loop: // When in check, search starts here
                             + (*contHist[3])[movedPiece][to_sq(move)];
 
               // Continuation history based pruning (~2 Elo)
-              if (   lmrDepth < 6
-                  && history < -3832 * depth)
+              if (   lmrDepth < L1023_0
+                  && history < L1024_0 * depth)
                   continue;
 
-              history += 2 * thisThread->mainHistory[us][from_to(move)];
+              history += L1027_0 * thisThread->mainHistory[us][from_to(move)];
 
-              lmrDepth += history / 7011;
-              lmrDepth = std::max(lmrDepth, -2);
+              lmrDepth += history / L1029_0;
+              lmrDepth = std::max(lmrDepth, L1030_0);
 
               // Futility pruning: parent node (~13 Elo)
               if (   !ss->inCheck
-                  && lmrDepth < 12
-                  && ss->staticEval + 112 + 138 * lmrDepth <= alpha)
+                  && lmrDepth < L1034_0
+                  && ss->staticEval + L1035_0 + L1035_1 * lmrDepth <= alpha)
                   continue;
 
               lmrDepth = std::max(lmrDepth, 0);
 
               // Prune moves with negative SEE (~4 Elo)
-              if (!pos.see_ge(move, Value(-27 * lmrDepth * lmrDepth - 16 * lmrDepth)))
+              if (!pos.see_ge(move, Value(L1041_0 * lmrDepth * lmrDepth - L1041_1 * lmrDepth)))
                   continue;
           }
       }
