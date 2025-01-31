@@ -38,6 +38,29 @@
 
 namespace Stockfish {
 
+int L830_0 = 2;
+int L830_1 = 2;
+int L836_0 = 8;
+int L838_0 = 2;
+int L840_0 = 168;
+int L840_1 = 61;
+int L846_0 = 3;
+int L852_0 = 3;
+int L878_0 = 4;
+int L885_0 = 3;
+
+TUNE(L830_0,
+L830_1,
+L836_0,
+L838_0,
+L840_0,
+L840_1,
+L846_0,
+L852_0,
+L878_0,
+L885_0
+);
+
 namespace Search {
 
   LimitsType Limits;
@@ -827,29 +850,29 @@ namespace {
     // Use qsearch if depth is equal or below zero (~9 Elo)
     if (    PvNode
         && !ttMove)
-        depth -= 2 + 2 * (ss->ttHit && tte->depth() >= depth);
+        depth -= L830_0 + L830_1 * (ss->ttHit && tte->depth() >= depth);
 
     if (depth <= 0)
         return qsearch<PV>(pos, ss, alpha, beta);
 
     if (    cutNode
-        &&  depth >= 8
+        &&  depth >= L836_0
         && !ttMove)
-        depth -= 2;
+        depth -= L838_0;
 
-    probCutBeta = beta + 168 - 61 * improving;
+    probCutBeta = beta + L840_0 - L840_1 * improving;
 
     // Step 11. ProbCut (~10 Elo)
     // If we have a good enough capture (or queen promotion) and a reduced search returns a value
     // much above beta, we can (almost) safely prune the previous move.
     if (   !PvNode
-        &&  depth > 3
+        &&  depth > L846_0
         &&  abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
         // If value from transposition table is lower than probCutBeta, don't attempt probCut
         // there and in further interactions with transposition table cutoff depth is set to depth - 3
         // because probCut search has depth set to depth - 4 but we also do a move before it
         // So effective depth is equal to depth - 3
-        && !(   tte->depth() >= depth - 3
+        && !(   tte->depth() >= depth - L852_0
              && ttValue != VALUE_NONE
              && ttValue < probCutBeta))
     {
@@ -875,14 +898,14 @@ namespace {
 
                 // If the qsearch held, perform the regular search
                 if (value >= probCutBeta)
-                    value = -search<NonPV>(pos, ss+1, -probCutBeta, -probCutBeta+1, depth - 4, !cutNode);
+                    value = -search<NonPV>(pos, ss+1, -probCutBeta, -probCutBeta+1, depth - L878_0, !cutNode);
 
                 pos.undo_move(move);
 
                 if (value >= probCutBeta)
                 {
                     // Save ProbCut data into transposition table
-                    tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
+                    tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - L885_0, move, ss->staticEval);
                     return value;
                 }
             }
