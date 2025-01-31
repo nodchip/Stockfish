@@ -38,27 +38,6 @@
 
 namespace Stockfish {
 
-int L744_0 = -18;
-int L744_1 = -1817;
-int L744_2 = 1817;
-int L754_0 = 173;
-int L760_0 = 456;
-int L760_1 = 252;
-int L770_0 = 9;
-int L771_1 = 306;
-int L773_0 = 24923;
-
-TUNE(L744_0,
-L744_1,
-L744_2,
-L754_0,
-L760_0,
-L760_1,
-L770_0,
-L773_0
-);
-TUNE(SetRange(1, 612), L771_1);
-
 namespace Search {
 
   LimitsType Limits;
@@ -762,7 +741,7 @@ namespace {
     // Use static evaluation difference to improve quiet move ordering (~4 Elo)
     if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
     {
-        int bonus = std::clamp(L744_0 * int((ss-1)->staticEval + ss->staticEval), L744_1, L744_2);
+        int bonus = std::clamp(-17 * int((ss-1)->staticEval + ss->staticEval), -1752, 1833);
         thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << bonus;
     }
 
@@ -772,13 +751,13 @@ namespace {
     // margin and the improving flag are used in various pruning heuristics.
     improvement =   (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
                   : (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
-                  :                                    L754_0;
+                  :                                    174;
     improving = improvement > 0;
 
     // Step 7. Razoring (~1 Elo).
     // If eval is really low check with qsearch if it can exceed alpha, if it can't,
     // return a fail low.
-    if (eval < alpha - L760_0 - L760_1 * depth * depth)
+    if (eval < alpha - 471 - 250 * depth * depth)
     {
         value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
         if (value < alpha)
@@ -788,10 +767,10 @@ namespace {
     // Step 8. Futility pruning: child node (~40 Elo).
     // The depth condition is important for mate finding.
     if (   !ss->ttPv
-        &&  depth < L770_0
-        &&  eval - futility_margin(depth, improving) - (ss-1)->statScore / L771_1 >= beta
+        &&  depth < 9
+        &&  eval - futility_margin(depth, improving) - (ss-1)->statScore / 274 >= beta
         &&  eval >= beta
-        &&  eval < L773_0) // larger than VALUE_KNOWN_WIN, but smaller than TB wins
+        &&  eval < 25343) // larger than VALUE_KNOWN_WIN, but smaller than TB wins
         return eval;
 
     // Step 9. Null move search with verification search (~35 Elo)
