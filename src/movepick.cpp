@@ -23,6 +23,29 @@
 
 namespace Stockfish {
 
+int L125_0 = 112;
+int L126_0 = 16;
+int L129_0 = 512;
+int L130_0 = 512;
+int L131_0 = 256;
+int L132_0 = 256;
+int L133_0 = 256;
+int L135_0 = 50000;
+int L136_0 = 25000;
+int L137_0 = 15000;
+int L140_0 = 16384;
+TUNE(L125_0,
+L126_0,
+L129_0,
+L130_0,
+L131_0,
+L132_0,
+L133_0,
+L135_0,
+L136_0,
+L137_0,
+L140_0);
+
 namespace {
 
   enum Stages {
@@ -122,22 +145,22 @@ void MovePicker::score() {
 
   for (auto& m : *this)
       if constexpr (Type == CAPTURES)
-          m.value =  (7 * int(PieceValue[MG][pos.piece_on(to_sq(m))])
-                   +     (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]) / 16;
+          m.value =  (L125_0 * int(PieceValue[MG][pos.piece_on(to_sq(m))])
+                   +   L126_0 * (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]) / 256;
 
       else if constexpr (Type == QUIETS)
-          m.value =  2 * (*mainHistory)[pos.side_to_move()][from_to(m)]
-                   + 2 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)]
-                   +     (*continuationHistory[1])[pos.moved_piece(m)][to_sq(m)]
-                   +     (*continuationHistory[3])[pos.moved_piece(m)][to_sq(m)]
-                   +     (*continuationHistory[5])[pos.moved_piece(m)][to_sq(m)]
-                   +     (threatenedPieces & from_sq(m) ?
-                           (type_of(pos.moved_piece(m)) == QUEEN && !(to_sq(m) & threatenedByRook)  ? 50000
-                          : type_of(pos.moved_piece(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? 25000
-                          :                                         !(to_sq(m) & threatenedByPawn)  ? 15000
+          m.value =  L129_0 * (*mainHistory)[pos.side_to_move()][from_to(m)] / 256
+                   + L130_0 * (*continuationHistory[0])[pos.moved_piece(m)][to_sq(m)] / 256
+                   + L131_0 * (*continuationHistory[1])[pos.moved_piece(m)][to_sq(m)] / 256
+                   + L132_0 * (*continuationHistory[3])[pos.moved_piece(m)][to_sq(m)] / 256
+                   + L133_0 * (*continuationHistory[5])[pos.moved_piece(m)][to_sq(m)] / 256
+                   +       (threatenedPieces & from_sq(m) ?
+                           (type_of(pos.moved_piece(m)) == QUEEN && !(to_sq(m) & threatenedByRook)  ? L135_0
+                          : type_of(pos.moved_piece(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? L136_0
+                          :                                         !(to_sq(m) & threatenedByPawn)  ? L137_0
                           :                                                                           0)
                           :                                                                           0)
-                   +     bool(pos.check_squares(type_of(pos.moved_piece(m))) & to_sq(m)) * 16384;
+                   +     bool(pos.check_squares(type_of(pos.moved_piece(m))) & to_sq(m)) * L140_0;
       else // Type == EVASIONS
       {
           if (pos.capture_stage(m))
