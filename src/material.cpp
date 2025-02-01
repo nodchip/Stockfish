@@ -26,7 +26,6 @@ using namespace std;
 
 namespace Stockfish {
 
-namespace {
   #define S(mg, eg) make_score(mg, eg)
 
   // Polynomial material imbalance parameters
@@ -44,7 +43,7 @@ namespace {
   };
 
   // One Score parameter for each pair (our piece, their piece)
-  constexpr Score QuadraticTheirs[][PIECE_TYPE_NB] = {
+  Score QuadraticTheirs[][PIECE_TYPE_NB] = {
     // THEIR PIECE
     // bishop pair   pawn         knight       bishop       rook         queen
     {                                                                               }, // Bishop pair
@@ -55,7 +54,11 @@ namespace {
     {S(  97,  93), S(100, 163), S(-58, -91), S(112, 192), S(276, 225)               }  // Queen
   };
 
+  TUNE(QuadraticTheirs);
+
   #undef S
+
+namespace {
 
   // Endgame evaluation and scaling functions are accessed directly and not through
   // the function maps because they correspond to more than one material hash key.
