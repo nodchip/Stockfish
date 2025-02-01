@@ -38,6 +38,37 @@
 
 namespace Stockfish {
 
+int L1209_0 = 64;
+int L1209_1 = 11;
+int L1210_0 = 711;
+int L1210_1 = 6;
+int L1233_0 = 2;
+int L1235_0 = 3;
+int L1266_0 = 2;
+int L1266_1 = 3;
+int L1327_0 = 2;
+int L1328_0 = 12;
+int L1329_0 = 14362;
+int L1330_0 = -12393;
+int L1331_0 = 2;
+int L1343_0 = 32;
+int L1346_0 = 64;
+TUNE(L1209_0,
+L1209_1,
+L1210_0,
+L1210_1,
+L1233_0,
+L1235_0,
+L1266_0,
+L1327_0,
+L1328_0,
+L1329_0,
+L1330_0,
+L1331_0,
+L1343_0,
+L1346_0);
+TUNE(SetRange(1, 6), L1266_1);
+
 namespace Search {
 
   LimitsType Limits;
@@ -1206,8 +1237,8 @@ moves_loop: // When in check, search starts here
           {
               // Adjust full-depth search based on LMR results - if the result
               // was good enough search deeper, if it was bad enough search shallower
-              const bool doDeeperSearch = value > (bestValue + 64 + 11 * (newDepth - d));
-              const bool doEvenDeeperSearch = value > alpha + 711 && ss->doubleExtensions <= 6;
+              const bool doDeeperSearch = value > (bestValue + L1209_0 + L1209_1 * (newDepth - d));
+              const bool doEvenDeeperSearch = value > alpha + L1210_0 && ss->doubleExtensions <= L1210_1;
               const bool doShallowerSearch = value < bestValue + newDepth;
 
               ss->doubleExtensions = ss->doubleExtensions + doEvenDeeperSearch;
@@ -1230,9 +1261,9 @@ moves_loop: // When in check, search starts here
       {
           // Increase reduction for cut nodes and not ttMove (~1 Elo)
           if (!ttMove && cutNode)
-              r += 2;
+              r += L1233_0;
 
-          value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth - (r > 3), !cutNode);
+          value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth - (r > L1235_0), !cutNode);
       }
 
       // For PV nodes only, do a full PV search on the first move or after a fail
@@ -1263,7 +1294,7 @@ moves_loop: // When in check, search starts here
           RootMove& rm = *std::find(thisThread->rootMoves.begin(),
                                     thisThread->rootMoves.end(), move);
 
-          rm.averageScore = rm.averageScore != -VALUE_INFINITE ? (2 * value + rm.averageScore) / 3 : value;
+          rm.averageScore = rm.averageScore != -VALUE_INFINITE ? (L1266_0 * value + rm.averageScore) / L1266_1 : value;
 
           // PV move or new best move?
           if (moveCount == 1 || value > alpha)
@@ -1324,11 +1355,11 @@ moves_loop: // When in check, search starts here
               else
               {
                   // Reduce other moves if we have found at least one score improvement (~2 Elo)
-                  if (   depth > 2
-                      && depth < 12
-                      && beta  <  14362
-                      && value > -12393)
-                      depth -= 2;
+                  if (   depth > L1327_0
+                      && depth < L1328_0
+                      && beta  <  L1329_0
+                      && value > L1330_0)
+                      depth -= L1331_0;
 
                   assert(depth > 0);
                   alpha = value; // Update alpha! Always alpha < beta
@@ -1340,10 +1371,10 @@ moves_loop: // When in check, search starts here
       // If the move is worse than some previously searched move, remember it, to update its stats later
       if (move != bestMove)
       {
-          if (capture && captureCount < 32)
+          if (capture && captureCount < L1343_0)
               capturesSearched[captureCount++] = move;
 
-          else if (!capture && quietCount < 64)
+          else if (!capture && quietCount < L1346_0)
               quietsSearched[quietCount++] = move;
       }
     }
