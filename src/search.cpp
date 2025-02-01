@@ -38,19 +38,6 @@
 
 namespace Stockfish {
 
-int L1379_0 = 5;
-int L1379_1 = 113;
-int L1379_2 = 12;
-int L1389_0 = 3;
-int L1503_0 = 200;
-int L1710_0 = 145;
-TUNE(L1379_0,
-L1379_1,
-L1379_2,
-L1389_0,
-L1503_0,
-L1710_0);
-
 namespace Search {
 
   LimitsType Limits;
@@ -1389,7 +1376,7 @@ moves_loop: // When in check, search starts here
     // Bonus for prior countermove that caused the fail low
     else if (!priorCapture && prevSq != SQ_NONE)
     {
-        int bonus = (depth > L1379_0) + (PvNode || cutNode) + (bestValue < alpha - L1379_1 * depth) + ((ss-1)->moveCount > L1379_2);
+        int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - 112 * depth) + ((ss-1)->moveCount > 11);
         update_continuation_histories(ss-1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
     }
 
@@ -1399,7 +1386,7 @@ moves_loop: // When in check, search starts here
     // If no good move is found and the previous position was ttPv, then the previous
     // opponent move is probably good and the new position is added to the search tree. (~7 Elo)
     if (bestValue <= alpha)
-        ss->ttPv = ss->ttPv || ((ss-1)->ttPv && depth > L1389_0);
+        ss->ttPv = ss->ttPv || ((ss-1)->ttPv && depth > 3);
 
     // Write gathered information in transposition table
     if (!excludedMove && !(rootNode && thisThread->pvIdx))
@@ -1513,7 +1500,7 @@ moves_loop: // When in check, search starts here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        futilityBase = bestValue + L1503_0;
+        futilityBase = bestValue + 202;
     }
 
     const PieceToHistory* contHist[] = { (ss-1)->continuationHistory, (ss-2)->continuationHistory,
@@ -1720,7 +1707,7 @@ moves_loop: // When in check, search starts here
 
     if (!pos.capture_stage(bestMove))
     {
-        int bonus2 = bestValue > beta + L1710_0 ? bonus1               // larger bonus
+        int bonus2 = bestValue > beta + 152 ? bonus1               // larger bonus
                                             : stat_bonus(depth);   // smaller bonus
 
         // Increase stats for the best move in case it was a quiet move
