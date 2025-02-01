@@ -38,33 +38,6 @@
 
 namespace Stockfish {
 
-int L1149_0 = 3;
-int L1149_1 = 3;
-int L1149_2 = 2;
-int L1152_0 = 8;
-int L1157_0 = 2;
-int L1165_0 = 6;
-int L1172_0 = 3;
-int L1178_0 = 2;
-int L1182_0 = 4006;
-int L1185_0 = 11124;
-int L1185_1 = 4740;
-int L1185_2 = 5;
-int L1185_3 = 22;
-TUNE(L1149_0,
-L1149_1,
-L1149_2,
-L1152_0,
-L1157_0,
-L1165_0,
-L1172_0,
-L1178_0,
-L1182_0,
-L1185_0,
-L1185_1,
-L1185_2,
-L1185_3);
-
 namespace Search {
 
   LimitsType Limits;
@@ -1173,15 +1146,15 @@ moves_loop: // When in check, search starts here
       // Decrease further on cutNodes. (~1 Elo)
       if (   ss->ttPv
           && !likelyFailLow)
-          r -= cutNode && tte->depth() >= depth + L1149_0 ? L1149_1 : L1149_2;
+          r -= cutNode && tte->depth() >= depth + 3 ? 3 : 2;
 
       // Decrease reduction if opponent's move count is high (~1 Elo)
-      if ((ss-1)->moveCount > L1152_0)
+      if ((ss-1)->moveCount > 8)
           r--;
 
       // Increase reduction for cut nodes (~3 Elo)
       if (cutNode)
-          r += L1157_0;
+          r += 2;
 
       // Increase reduction if ttMove is a capture (~3 Elo)
       if (ttCapture)
@@ -1189,27 +1162,27 @@ moves_loop: // When in check, search starts here
 
       // Decrease reduction for PvNodes based on depth (~2 Elo)
       if (PvNode)
-          r -= 1 + (depth < L1165_0);
+          r -= 1 + (depth < 6);
 
       // Decrease reduction if ttMove has been singularly extended (~1 Elo)
       if (singularQuietLMR)
           r--;
 
       // Increase reduction if next ply has a lot of fail high (~5 Elo)
-      if ((ss+1)->cutoffCnt > L1172_0)
+      if ((ss+1)->cutoffCnt > 3)
           r++;
 
       else if (move == ttMove)
           r--;
 
-      ss->statScore =  L1178_0 * thisThread->mainHistory[us][from_to(move)]
+      ss->statScore =  2 * thisThread->mainHistory[us][from_to(move)]
                      + (*contHist[0])[movedPiece][to_sq(move)]
                      + (*contHist[1])[movedPiece][to_sq(move)]
                      + (*contHist[3])[movedPiece][to_sq(move)]
-                     - L1182_0;
+                     - 4178;
 
       // Decrease/increase reduction for moves with a good/bad history (~25 Elo)
-      r -= ss->statScore / (L1185_0 + L1185_1 * (depth > L1185_2 && depth < L1185_3));
+      r -= ss->statScore / (8973 + 4288 * (depth > 5 && depth < 19));
 
       // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
       // We use various heuristics for the sons of a node after the first son has
