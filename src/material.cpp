@@ -26,6 +26,17 @@ using namespace std;
 
 namespace Stockfish {
 
+int L208_0 = 4;
+int L208_1 = 14;
+int L212_0 = 4;
+int L212_1 = 14;
+int L223_0 = 16;
+TUNE(L208_0,
+L208_1,
+L212_0,
+L212_1);
+TUNE(SetRange(1, 32), L223_0);
+
 namespace {
   #define S(mg, eg) make_score(mg, eg)
 
@@ -205,11 +216,11 @@ Entry* probe(const Position& pos) {
   // drawish scale factor for cases such as KRKBP and KmmKm (except for KBBKN).
   if (!pos.count<PAWN>(WHITE) && npm_w - npm_b <= BishopValueMg)
       e->factor[WHITE] = uint8_t(npm_w <  RookValueMg   ? SCALE_FACTOR_DRAW :
-                                 npm_b <= BishopValueMg ? 4 : 14);
+                                 npm_b <= BishopValueMg ? L208_0 : L208_1);
 
   if (!pos.count<PAWN>(BLACK) && npm_b - npm_w <= BishopValueMg)
       e->factor[BLACK] = uint8_t(npm_b <  RookValueMg   ? SCALE_FACTOR_DRAW :
-                                 npm_w <= BishopValueMg ? 4 : 14);
+                                 npm_w <= BishopValueMg ? L212_0 : L212_1);
 
   // Evaluate the material imbalance. We use PIECE_TYPE_NONE as a place holder
   // for the bishop pair "extended piece", which allows us to be more flexible
@@ -220,7 +231,7 @@ Entry* probe(const Position& pos) {
   { pos.count<BISHOP>(BLACK) > 1, pos.count<PAWN>(BLACK), pos.count<KNIGHT>(BLACK),
     pos.count<BISHOP>(BLACK)    , pos.count<ROOK>(BLACK), pos.count<QUEEN >(BLACK) } };
 
-  e->score = (imbalance<WHITE>(pieceCount) - imbalance<BLACK>(pieceCount)) / 16;
+  e->score = (imbalance<WHITE>(pieceCount) - imbalance<BLACK>(pieceCount)) / L223_0;
   return e;
 }
 
