@@ -38,22 +38,6 @@
 
 namespace Stockfish {
 
-int L896_0 = 413;
-int L901_0 = 4;
-int L987_0 = 7;
-int L989_0 = 197;
-int L989_1 = 248;
-int L990_0 = 7;
-int L995_0 = -205;
-
-TUNE(L896_0,
-L901_0,
-L987_0,
-L989_0,
-L989_1,
-L995_0);
-TUNE(SetRange(1, 14), L990_0);
-
 namespace Search {
 
   LimitsType Limits;
@@ -909,12 +893,12 @@ namespace {
 moves_loop: // When in check, search starts here
 
     // Step 12. A small Probcut idea, when we are in check (~4 Elo)
-    probCutBeta = beta + L896_0;
+    probCutBeta = beta + 403;
     if (   ss->inCheck
         && !PvNode
         && ttCapture
         && (tte->bound() & BOUND_LOWER)
-        && tte->depth() >= depth - L901_0
+        && tte->depth() >= depth - 4
         && ttValue >= probCutBeta
         && abs(ttValue) <= VALUE_KNOWN_WIN
         && abs(beta) <= VALUE_KNOWN_WIN)
@@ -1000,15 +984,15 @@ moves_loop: // When in check, search starts here
           {
               // Futility pruning for captures (~2 Elo)
               if (   !givesCheck
-                  && lmrDepth < L987_0
+                  && lmrDepth < 7
                   && !ss->inCheck
-                  && ss->staticEval + L989_0 + L989_1 * lmrDepth + PieceValue[EG][pos.piece_on(to_sq(move))]
-                   + captureHistory[movedPiece][to_sq(move)][type_of(pos.piece_on(to_sq(move)))] / L990_0 < alpha)
+                  && ss->staticEval + 188 + 253 * lmrDepth + PieceValue[EG][pos.piece_on(to_sq(move))]
+                   + captureHistory[movedPiece][to_sq(move)][type_of(pos.piece_on(to_sq(move)))] / 7 < alpha)
                   continue;
 
               Bitboard occupied;
               // SEE based pruning (~11 Elo)
-              if (!pos.see_ge(move, occupied, Value(L995_0) * depth))
+              if (!pos.see_ge(move, occupied, Value(-197) * depth))
               {
                  if (depth < 2 - capture)
                     continue;
